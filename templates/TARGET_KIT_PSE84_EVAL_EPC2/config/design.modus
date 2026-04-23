@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration app="BACKEND" formatVersion="15" lastSavedWith="Configurator Backend" lastSavedWithVersion="3.60.0" toolsPackage="ModusToolbox 3.6.0" xmlns="http://cypress.com/xsd/cydesignfile_v6">
+<Configuration app="BACKEND" formatVersion="15" lastSavedWith="Configurator Backend" lastSavedWithVersion="3.70.0" toolsPackage="ModusToolbox 3.7.0" xmlns="http://cypress.com/xsd/cydesignfile_v7">
     <Devices>
         <Device mpn="PSE846GPS2DBZC4A">
             <BlockConfig>
@@ -11,31 +11,6 @@
                 <Block location="ioss[0].port[0].pin[0]">
                     <Aliases>
                         <Alias value="CYBSP_DISP_STBYB"/>
-                    </Aliases>
-                </Block>
-                <Block location="ioss[0].port[1].pin[4]">
-                    <Aliases>
-                        <Alias value="CYBSP_OSPI_D4"/>
-                    </Aliases>
-                </Block>
-                <Block location="ioss[0].port[1].pin[5]">
-                    <Aliases>
-                        <Alias value="CYBSP_OSPI_D5"/>
-                    </Aliases>
-                </Block>
-                <Block location="ioss[0].port[1].pin[6]">
-                    <Aliases>
-                        <Alias value="CYBSP_OSPI_D6"/>
-                    </Aliases>
-                </Block>
-                <Block location="ioss[0].port[1].pin[7]">
-                    <Aliases>
-                        <Alias value="CYBSP_OSPI_D7"/>
-                    </Aliases>
-                </Block>
-                <Block location="ioss[0].port[5].pin[0]">
-                    <Aliases>
-                        <Alias value="CYBSP_OSPI_SS"/>
                     </Aliases>
                 </Block>
                 <Block location="ioss[0].port[6].pin[0]">
@@ -541,6 +516,90 @@
                         <Param id="vtrip" value="CY_GPIO_VTRIP_CMOS"/>
                     </Parameters>
                 </Personality>
+                <Personality template="pin" version="3.0" instance="Gy7nb-4dfSY">
+                    <Block location="ioss[0].port[1].pin[4]" locked="true">
+                        <Aliases>
+                            <Alias value="CYBSP_OSPI_D4"/>
+                        </Aliases>
+                    </Block>
+                    <Parameters>
+                        <Param id="DriveModes" value="CY_GPIO_DM_STRONG"/>
+                        <Param id="driveStrength" value="CY_GPIO_DRIVE_1_2"/>
+                        <Param id="driveStrengthTrim" value="CY_GPIO_DRIVE_STRENGTH_DEFAULT"/>
+                        <Param id="extended_drive_sel" value="false"/>
+                        <Param id="inFlash" value="true"/>
+                        <Param id="initialState" value="1"/>
+                        <Param id="isrTrigger" value="CY_GPIO_INTR_DISABLE"/>
+                        <Param id="nonSec" value="1"/>
+                        <Param id="pullUpRes" value="CY_GPIO_PULLUP_RES_DISABLE"/>
+                        <Param id="sioOutputBuffer" value="true"/>
+                        <Param id="slewRate" value="CY_GPIO_SLEW_FAST"/>
+                        <Param id="vtrip" value="CY_GPIO_VTRIP_CMOS"/>
+                    </Parameters>
+                </Personality>
+                <Personality template="pin" version="3.0" instance="Y5UhM2GIB5s">
+                    <Block location="ioss[0].port[1].pin[5]" locked="true">
+                        <Aliases>
+                            <Alias value="CYBSP_OSPI_D5"/>
+                        </Aliases>
+                    </Block>
+                    <Parameters>
+                        <Param id="DriveModes" value="CY_GPIO_DM_STRONG"/>
+                        <Param id="driveStrength" value="CY_GPIO_DRIVE_1_2"/>
+                        <Param id="driveStrengthTrim" value="CY_GPIO_DRIVE_STRENGTH_DEFAULT"/>
+                        <Param id="extended_drive_sel" value="false"/>
+                        <Param id="inFlash" value="true"/>
+                        <Param id="initialState" value="1"/>
+                        <Param id="isrTrigger" value="CY_GPIO_INTR_DISABLE"/>
+                        <Param id="nonSec" value="1"/>
+                        <Param id="pullUpRes" value="CY_GPIO_PULLUP_RES_DISABLE"/>
+                        <Param id="sioOutputBuffer" value="true"/>
+                        <Param id="slewRate" value="CY_GPIO_SLEW_FAST"/>
+                        <Param id="vtrip" value="CY_GPIO_VTRIP_CMOS"/>
+                    </Parameters>
+                </Personality>
+                <Personality template="pin" version="3.0" instance="hLOSnFWvc8M">
+                    <Block location="ioss[0].port[1].pin[6]" locked="true">
+                        <Aliases>
+                            <Alias value="CYBSP_OSPI_D6"/>
+                        </Aliases>
+                    </Block>
+                    <Parameters>
+                        <Param id="DriveModes" value="CY_GPIO_DM_STRONG"/>
+                        <Param id="driveStrength" value="CY_GPIO_DRIVE_1_2"/>
+                        <Param id="driveStrengthTrim" value="CY_GPIO_DRIVE_STRENGTH_DEFAULT"/>
+                        <Param id="extended_drive_sel" value="false"/>
+                        <Param id="inFlash" value="true"/>
+                        <Param id="initialState" value="1"/>
+                        <Param id="isrTrigger" value="CY_GPIO_INTR_DISABLE"/>
+                        <Param id="nonSec" value="1"/>
+                        <Param id="pullUpRes" value="CY_GPIO_PULLUP_RES_DISABLE"/>
+                        <Param id="sioOutputBuffer" value="true"/>
+                        <Param id="slewRate" value="CY_GPIO_SLEW_FAST"/>
+                        <Param id="vtrip" value="CY_GPIO_VTRIP_CMOS"/>
+                    </Parameters>
+                </Personality>
+                <Personality template="pin" version="3.0" instance="JNzccfyg73Q">
+                    <Block location="ioss[0].port[1].pin[7]" locked="true">
+                        <Aliases>
+                            <Alias value="CYBSP_OSPI_D7"/>
+                        </Aliases>
+                    </Block>
+                    <Parameters>
+                        <Param id="DriveModes" value="CY_GPIO_DM_STRONG"/>
+                        <Param id="driveStrength" value="CY_GPIO_DRIVE_1_2"/>
+                        <Param id="driveStrengthTrim" value="CY_GPIO_DRIVE_STRENGTH_DEFAULT"/>
+                        <Param id="extended_drive_sel" value="false"/>
+                        <Param id="inFlash" value="true"/>
+                        <Param id="initialState" value="1"/>
+                        <Param id="isrTrigger" value="CY_GPIO_INTR_DISABLE"/>
+                        <Param id="nonSec" value="1"/>
+                        <Param id="pullUpRes" value="CY_GPIO_PULLUP_RES_DISABLE"/>
+                        <Param id="sioOutputBuffer" value="true"/>
+                        <Param id="slewRate" value="CY_GPIO_SLEW_FAST"/>
+                        <Param id="vtrip" value="CY_GPIO_VTRIP_CMOS"/>
+                    </Parameters>
+                </Personality>
                 <Personality template="pin" version="3.0" instance="bTZo4qYd5LE">
                     <Block location="ioss[0].port[2].pin[0]" locked="true">
                         <Aliases>
@@ -759,6 +818,27 @@
                     </Block>
                     <Parameters>
                         <Param id="DriveModes" value="CY_GPIO_DM_STRONG"/>
+                        <Param id="driveStrength" value="CY_GPIO_DRIVE_1_2"/>
+                        <Param id="driveStrengthTrim" value="CY_GPIO_DRIVE_STRENGTH_DEFAULT"/>
+                        <Param id="extended_drive_sel" value="false"/>
+                        <Param id="inFlash" value="true"/>
+                        <Param id="initialState" value="1"/>
+                        <Param id="isrTrigger" value="CY_GPIO_INTR_DISABLE"/>
+                        <Param id="nonSec" value="1"/>
+                        <Param id="pullUpRes" value="CY_GPIO_PULLUP_RES_DISABLE"/>
+                        <Param id="sioOutputBuffer" value="true"/>
+                        <Param id="slewRate" value="CY_GPIO_SLEW_FAST"/>
+                        <Param id="vtrip" value="CY_GPIO_VTRIP_CMOS"/>
+                    </Parameters>
+                </Personality>
+                <Personality template="pin" version="3.0" instance="J59VnCjIVrw">
+                    <Block location="ioss[0].port[5].pin[0]" locked="true">
+                        <Aliases>
+                            <Alias value="CYBSP_OSPI_SS"/>
+                        </Aliases>
+                    </Block>
+                    <Parameters>
+                        <Param id="DriveModes" value="CY_GPIO_DM_STRONG_IN_OFF"/>
                         <Param id="driveStrength" value="CY_GPIO_DRIVE_1_2"/>
                         <Param id="driveStrengthTrim" value="CY_GPIO_DRIVE_STRENGTH_DEFAULT"/>
                         <Param id="extended_drive_sel" value="false"/>
@@ -1343,7 +1423,7 @@
                         <Param id="extended_drive_sel" value="false"/>
                         <Param id="inFlash" value="true"/>
                         <Param id="initialState" value="1"/>
-                        <Param id="isrTrigger" value="CY_GPIO_INTR_DISABLE"/>
+                        <Param id="isrTrigger" value="CY_GPIO_INTR_RISING"/>
                         <Param id="nonSec" value="1"/>
                         <Param id="pullUpRes" value="CY_GPIO_PULLUP_RES_DISABLE"/>
                         <Param id="sioOutputBuffer" value="true"/>
@@ -2098,6 +2178,9 @@
                         <Param id="privileged1" value="false"/>
                         <Param id="privileged2" value="false"/>
                         <Param id="privileged3" value="false"/>
+                        <Param id="shareable1" value="false"/>
+                        <Param id="shareable2" value="false"/>
+                        <Param id="shareable3" value="false"/>
                         <Param id="size1" value="0x00003000"/>
                         <Param id="size2" value="0x00040000"/>
                         <Param id="size3" value="0x01000000"/>
@@ -2430,7 +2513,12 @@
                         <Param id="is_receiver_3_used" value="true"/>
                         <Param id="is_receiver_4_used" value="false"/>
                         <Param id="is_receiver_5_used" value="false"/>
-                        <Param id="routeCtl" value="4"/>
+                        <Param id="routeCtl_0_1_int1" value="0"/>
+                        <Param id="routeCtl_0_1_int2" value="1"/>
+                        <Param id="routeCtl_2_3_int1" value="0"/>
+                        <Param id="routeCtl_2_3_int2" value="4"/>
+                        <Param id="routeCtl_4_5_int1" value="0"/>
+                        <Param id="routeCtl_4_5_int2" value="16"/>
                         <Param id="rxDmaTrigger" value="false"/>
                         <Param id="rxFifoTriggerLevel_0" value="10"/>
                         <Param id="rxFifoTriggerLevel_1" value="10"/>
@@ -2626,11 +2714,9 @@
                     <Block location="peri[0].mmio[0]" locked="true"/>
                     <Parameters>
                         <Param id="divider2" value="2"/>
-                        <Param id="dividerEnabled0" value="false"/>
                         <Param id="dividerEnabled1" value="false"/>
                         <Param id="dividerEnabled2" value="true"/>
                         <Param id="dividerEnabled3" value="false"/>
-                        <Param id="dividerEnabled4" value="false"/>
                         <Param id="dividerEnabled5" value="false"/>
                     </Parameters>
                 </Personality>
@@ -2685,11 +2771,8 @@
                     <Parameters>
                         <Param id="divider1" value="2"/>
                         <Param id="divider3" value="4"/>
-                        <Param id="dividerEnabled0" value="false"/>
                         <Param id="dividerEnabled1" value="true"/>
-                        <Param id="dividerEnabled2" value="false"/>
                         <Param id="dividerEnabled3" value="true"/>
-                        <Param id="dividerEnabled4" value="false"/>
                     </Parameters>
                 </Personality>
                 <Personality template="i2c" version="4.0" instance="Z-0WSjZHSXQ">
@@ -2983,15 +3066,17 @@
                         <Param id="device1_sdl_tap" value="CY_SMIF_SDL_8_TAP_DELAY"/>
                         <Param id="device2_sdl_tap" value="CY_SMIF_SDL_8_TAP_DELAY"/>
                         <Param id="device3_sdl_tap" value="CY_SMIF_SDL_8_TAP_DELAY"/>
+                        <Param id="divider_enum" value="CY_SMIF_DLL_DIVIDE_BY_2"/>
                         <Param id="inFlash" value="true"/>
                         <Param id="isrAlignment" value="false"/>
                         <Param id="isrCmdOverflow" value="false"/>
                         <Param id="isrDataOverflow" value="false"/>
                         <Param id="isrUnderflow" value="false"/>
+                        <Param id="mdl_tap" value="CY_SMIF_MDL_8_TAP_DELAY"/>
                         <Param id="rxTriggerLevel" value="0"/>
                         <Param id="txTriggerLevel" value="0"/>
                         <Param id="tx_sdr_extra" value="CY_SMIF_TX_TWO_PERIOD_AHEAD"/>
-                        <Param id="use_dll" value="false"/>
+                        <Param id="use_dll" value="true"/>
                     </Parameters>
                 </Personality>
                 <Personality template="smif_core" version="1.0" instance="pf8yrLY5v70">
@@ -3114,8 +3199,8 @@
                     <Block location="srss[0].clock[0].hfclk[8]" locked="true"/>
                     <Parameters>
                         <Param id="ClkHfCsv" value="false"/>
-                        <Param id="divider" value="8"/>
-                        <Param id="sourceClockNumber" value="0"/>
+                        <Param id="divider" value="1"/>
+                        <Param id="sourceClockNumber" value="4"/>
                     </Parameters>
                 </Personality>
                 <Personality template="hfclk_v2" version="1.0" instance="oZ8lqZyblSI">
@@ -3881,8 +3966,80 @@
                         <Param id="size" value="0x00008000"/>
                     </Parameters>
                 </Personality>
-                <Personality template="memory_region_data" version="1.0" instance="Ue4ZPPM94kk">
+                <Personality template="memory_region_data" version="1.0" instance="KlSPUN2b2ko">
                     <Block location="vres[0].memory_region_data[19]" locked="true"/>
+                    <Parameters>
+                        <Param id="description" value="CM33 secure image including non-secure callable region"/>
+                        <Param id="domain" value="7cPl230VJyc"/>
+                        <Param id="memoryId" value="SMIF0MEM1"/>
+                        <Param id="offset" value="0x00100000"/>
+                        <Param id="regionId" value="m33s_nvm"/>
+                        <Param id="reservedGuid" value="USER_DEFINED"/>
+                        <Param id="size" value="0x00200000"/>
+                    </Parameters>
+                </Personality>
+                <Personality template="memory_region_data" version="1.0" instance="XLduePEY0k8">
+                    <Block location="vres[0].memory_region_data[20]" locked="true"/>
+                    <Parameters>
+                        <Param id="description" value="CM33 secure trailer"/>
+                        <Param id="domain" value="7cPl230VJyc"/>
+                        <Param id="memoryId" value="SMIF0MEM1"/>
+                        <Param id="offset" value="0x00300000"/>
+                        <Param id="regionId" value="m33s_trailer"/>
+                        <Param id="reservedGuid" value="USER_DEFINED"/>
+                        <Param id="size" value="0x00040000"/>
+                    </Parameters>
+                </Personality>
+                <Personality template="memory_region_data" version="1.0" instance="pUoqWWIDP0k">
+                    <Block location="vres[0].memory_region_data[21]" locked="true"/>
+                    <Parameters>
+                        <Param id="description" value="CM33 image"/>
+                        <Param id="domain" value="Xo07Phg6oz8"/>
+                        <Param id="memoryId" value="SMIF0MEM1"/>
+                        <Param id="offset" value="0x00340000"/>
+                        <Param id="regionId" value="m33_nvm"/>
+                        <Param id="reservedGuid" value="USER_DEFINED"/>
+                        <Param id="size" value="0x00200000"/>
+                    </Parameters>
+                </Personality>
+                <Personality template="memory_region_data" version="1.0" instance="R37aJqS0DHc">
+                    <Block location="vres[0].memory_region_data[22]" locked="true"/>
+                    <Parameters>
+                        <Param id="description" value="CM33 trailer"/>
+                        <Param id="domain" value="Xo07Phg6oz8"/>
+                        <Param id="memoryId" value="SMIF0MEM1"/>
+                        <Param id="offset" value="0x00540000"/>
+                        <Param id="regionId" value="m33_trailer"/>
+                        <Param id="reservedGuid" value="USER_DEFINED"/>
+                        <Param id="size" value="0x00040000"/>
+                    </Parameters>
+                </Personality>
+                <Personality template="memory_region_data" version="1.0" instance="hI6rcsIVbY8">
+                    <Block location="vres[0].memory_region_data[23]" locked="true"/>
+                    <Parameters>
+                        <Param id="description" value="CM55 image"/>
+                        <Param id="domain" value="P8kQl2DRYUQ"/>
+                        <Param id="memoryId" value="SMIF0MEM1"/>
+                        <Param id="offset" value="0x00580000"/>
+                        <Param id="regionId" value="m55_nvm"/>
+                        <Param id="reservedGuid" value="USER_DEFINED"/>
+                        <Param id="size" value="0x00A40000"/>
+                    </Parameters>
+                </Personality>
+                <Personality template="memory_region_data" version="1.0" instance="Uf6k7mjY61A">
+                    <Block location="vres[0].memory_region_data[24]" locked="true"/>
+                    <Parameters>
+                        <Param id="description" value="CM55 trailer"/>
+                        <Param id="domain" value="P8kQl2DRYUQ"/>
+                        <Param id="memoryId" value="SMIF0MEM1"/>
+                        <Param id="offset" value="0x00FC0000"/>
+                        <Param id="regionId" value="m55_trailer"/>
+                        <Param id="reservedGuid" value="USER_DEFINED"/>
+                        <Param id="size" value="0x00040000"/>
+                    </Parameters>
+                </Personality>
+                <Personality template="memory_region_data" version="1.0" instance="04OQw050wis">
+                    <Block location="vres[0].memory_region_data[25]" locked="true"/>
                     <Parameters>
                         <Param id="description" value="vglite buffers "/>
                         <Param id="domain" value="Rj_rAX1eb8U"/>
@@ -3891,78 +4048,6 @@
                         <Param id="regionId" value="CM55_PSRAM"/>
                         <Param id="reservedGuid" value="USER_DEFINED"/>
                         <Param id="size" value="0x01000000"/>
-                    </Parameters>
-                </Personality>
-                <Personality template="memory_region_data" version="1.0" instance="kaEuFmPDAzs">
-                    <Block location="vres[0].memory_region_data[20]" locked="true"/>
-                    <Parameters>
-                        <Param id="description" value="CM33 secure image including non-secure callable region"/>
-                        <Param id="domain" value="7cPl230VJyc"/>
-                        <Param id="memoryId" value="SMIF0MEM0"/>
-                        <Param id="offset" value="0x00100000"/>
-                        <Param id="regionId" value="m33s_nvm"/>
-                        <Param id="reservedGuid" value="USER_DEFINED"/>
-                        <Param id="size" value="0x00200000"/>
-                    </Parameters>
-                </Personality>
-                <Personality template="memory_region_data" version="1.0" instance="n4uAzoMNqBw">
-                    <Block location="vres[0].memory_region_data[21]" locked="true"/>
-                    <Parameters>
-                        <Param id="description" value="CM33 secure trailer"/>
-                        <Param id="domain" value="7cPl230VJyc"/>
-                        <Param id="memoryId" value="SMIF0MEM0"/>
-                        <Param id="offset" value="0x00300000"/>
-                        <Param id="regionId" value="m33s_trailer"/>
-                        <Param id="reservedGuid" value="USER_DEFINED"/>
-                        <Param id="size" value="0x00040000"/>
-                    </Parameters>
-                </Personality>
-                <Personality template="memory_region_data" version="1.0" instance="8uj1P33BetE">
-                    <Block location="vres[0].memory_region_data[22]" locked="true"/>
-                    <Parameters>
-                        <Param id="description" value="CM33 image"/>
-                        <Param id="domain" value="Xo07Phg6oz8"/>
-                        <Param id="memoryId" value="SMIF0MEM0"/>
-                        <Param id="offset" value="0x00340000"/>
-                        <Param id="regionId" value="m33_nvm"/>
-                        <Param id="reservedGuid" value="USER_DEFINED"/>
-                        <Param id="size" value="0x00200000"/>
-                    </Parameters>
-                </Personality>
-                <Personality template="memory_region_data" version="1.0" instance="OJDtupXFWTA">
-                    <Block location="vres[0].memory_region_data[23]" locked="true"/>
-                    <Parameters>
-                        <Param id="description" value="CM33 trailer"/>
-                        <Param id="domain" value="Xo07Phg6oz8"/>
-                        <Param id="memoryId" value="SMIF0MEM0"/>
-                        <Param id="offset" value="0x00540000"/>
-                        <Param id="regionId" value="m33_trailer"/>
-                        <Param id="reservedGuid" value="USER_DEFINED"/>
-                        <Param id="size" value="0x00040000"/>
-                    </Parameters>
-                </Personality>
-                <Personality template="memory_region_data" version="1.0" instance="PlXlzwqdyl0">
-                    <Block location="vres[0].memory_region_data[24]" locked="true"/>
-                    <Parameters>
-                        <Param id="description" value="CM55 image"/>
-                        <Param id="domain" value="P8kQl2DRYUQ"/>
-                        <Param id="memoryId" value="SMIF0MEM0"/>
-                        <Param id="offset" value="0x00580000"/>
-                        <Param id="regionId" value="m55_nvm"/>
-                        <Param id="reservedGuid" value="USER_DEFINED"/>
-                        <Param id="size" value="0x03A40000"/>
-                    </Parameters>
-                </Personality>
-                <Personality template="memory_region_data" version="1.0" instance="O7rdzB6zhrI">
-                    <Block location="vres[0].memory_region_data[25]" locked="true"/>
-                    <Parameters>
-                        <Param id="description" value="CM55 trailer"/>
-                        <Param id="domain" value="P8kQl2DRYUQ"/>
-                        <Param id="memoryId" value="SMIF0MEM0"/>
-                        <Param id="offset" value="0x03FC0000"/>
-                        <Param id="regionId" value="m55_trailer"/>
-                        <Param id="reservedGuid" value="USER_DEFINED"/>
-                        <Param id="size" value="0x00040000"/>
                     </Parameters>
                 </Personality>
                 <Personality template="protection" version="1.0" instance="lyICW4XqF-w">
@@ -4065,6 +4150,22 @@
                     <Port name="smif[0].core[0].spihb_data3_pad[0]"/>
                 </Net>
                 <Net>
+                    <Port name="ioss[0].port[1].pin[4].aux[0]"/>
+                    <Port name="smif[0].core[0].spihb_data4_pad[0]"/>
+                </Net>
+                <Net>
+                    <Port name="ioss[0].port[1].pin[5].aux[0]"/>
+                    <Port name="smif[0].core[0].spihb_data5_pad[0]"/>
+                </Net>
+                <Net>
+                    <Port name="ioss[0].port[1].pin[6].aux[0]"/>
+                    <Port name="smif[0].core[0].spihb_data6_pad[0]"/>
+                </Net>
+                <Net>
+                    <Port name="ioss[0].port[1].pin[7].aux[0]"/>
+                    <Port name="smif[0].core[0].spihb_data7_pad[0]"/>
+                </Net>
+                <Net>
                     <Port name="ioss[0].port[2].pin[0].digital_out[0]"/>
                     <Port name="smif[0].core[0].spihb_select1[0]"/>
                 </Net>
@@ -4099,6 +4200,10 @@
                 <Net>
                     <Port name="ioss[0].port[4].pin[7].aux[0]"/>
                     <Port name="smif[1].core[0].spihb_data7_pad[0]"/>
+                </Net>
+                <Net>
+                    <Port name="ioss[0].port[5].pin[0].digital_out[0]"/>
+                    <Port name="smif[0].core[0].spihb_select0[0]"/>
                 </Net>
                 <Net>
                     <Port name="ioss[0].port[6].pin[5].digital_inout[0]"/>

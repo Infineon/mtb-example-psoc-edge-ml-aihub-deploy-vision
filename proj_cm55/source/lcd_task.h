@@ -1,11 +1,11 @@
-/***************************************************************************//**
+/*****************************************************************************
 * \file lcd_task.h
 *
 * \brief
 * This is the header file of LCD display functions.
 *
 ********************************************************************************
-* (c) 2025, Infineon Technologies AG, or an affiliate of Infineon
+* (c) 2025-2026, Infineon Technologies AG, or an affiliate of Infineon
 * Technologies AG. All rights reserved.
 * This software, associated documentation and materials ("Software") is
 * owned by Infineon Technologies AG or one of its affiliates ("Infineon")
@@ -16,7 +16,7 @@
 * agreement applies, then any use, reproduction, modification, translation, or
 * compilation of this Software is prohibited without the express written
 * permission of Infineon.
-* 
+*
 * Disclaimer: UNLESS OTHERWISE EXPRESSLY AGREED WITH INFINEON, THIS SOFTWARE
 * IS PROVIDED AS-IS, WITH NO WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 * INCLUDING, BUT NOT LIMITED TO, ALL WARRANTIES OF NON-INFRINGEMENT OF
@@ -54,39 +54,29 @@ extern "C" {
 /*******************************************************************************
  * Macros
  *******************************************************************************/
-#define NUM_IMAGE_BUFFERS   3   //4
+/* Number of image buffers */
+#define NUM_IMAGE_BUFFERS                   ( 3 )
 
 /*******************************************************************************
  * Global Variables
  *******************************************************************************/
-extern cy_semaphore_t model_semaphore;  // Model semaphore for synchronization
-extern int8_t bgr888_int8[];           // BGR888 integer buffer
+/* Model semaphore for synchronization */
+extern cy_semaphore_t model_semaphore;
+/* BGR888 integer buffer */
+extern uint8_t bgr888_uint8[];
 
 /*******************************************************************************
  * Local Variables
  *******************************************************************************/
-extern vg_lite_buffer_t *renderTarget;         // Render target buffer
-extern vg_lite_buffer_t usb_yuv_frames[];      // USB YUV frame buffers
+/* Render target buffer */
+extern vg_lite_buffer_t *renderTarget;
+/* USB YUV frame buffers */
+extern vg_lite_buffer_t usb_yuv_frames[];
 extern vg_lite_buffer_t mask_buffer;
 extern vg_lite_matrix_t matrix;
 
 /*******************************************************************************
  * Function Prototypes
- *******************************************************************************/
-/*******************************************************************************
- * Function Name: draw
- *******************************************************************************
- *
- * Summary:
- *  Draws the image using GPU and refreshes the frame buffer. Selects a ready
- *  camera input image buffer and converts the input image in YUV422 to RGB888.
- *
- * Parameters:
- *  None
- *
- * Return:
- *  Pointer to the image buffer in RGB888.
- *
  *******************************************************************************/
 uint8_t *draw(void);
 uint32_t calculate_idle_percentage(void);
@@ -95,4 +85,4 @@ uint32_t calculate_idle_percentage(void);
 }
 #endif /* __cplusplus */
 
-#endif //_LCD_TASK_H_
+#endif /* _LCD_TASK_H_ */

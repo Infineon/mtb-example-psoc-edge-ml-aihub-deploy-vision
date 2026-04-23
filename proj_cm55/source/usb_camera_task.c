@@ -7,7 +7,7 @@
 *
 *
 ********************************************************************************
-* (c) 2025, Infineon Technologies AG, or an affiliate of Infineon
+* (c) 2025-2026, Infineon Technologies AG, or an affiliate of Infineon
 * Technologies AG. All rights reserved.
 * This software, associated documentation and materials ("Software") is
 * owned by Infineon Technologies AG or one of its affiliates ("Infineon")
@@ -18,7 +18,7 @@
 * agreement applies, then any use, reproduction, modification, translation, or
 * compilation of this Software is prohibited without the express written
 * permission of Infineon.
-* 
+*
 * Disclaimer: UNLESS OTHERWISE EXPRESSLY AGREED WITH INFINEON, THIS SOFTWARE
 * IS PROVIDED AS-IS, WITH NO WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 * INCLUDING, BUT NOT LIMITED TO, ALL WARRANTIES OF NON-INFRINGEMENT OF
@@ -62,33 +62,46 @@
 /*******************************************************************************
 * Macros
 *******************************************************************************/
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
 
 /*******************************************************************************
  * Global Variables
  *******************************************************************************/
-static cy_thread_t usbh_main_task_handle;           // Handle for USB host main task
-static cy_thread_t usbh_isr_task_handle;            // Handle for USB host ISR task
+/* Handle for USB host main task */
+static cy_thread_t usbh_main_task_handle;
+/* Handle for USB host ISR task */
+static cy_thread_t usbh_isr_task_handle;
+/* Mailbox for video-related messages */
+static cy_queue_t _video_mail_box;
+/* Mailbox for device state messages */
+static cy_queue_t _device_state_mail_box;
+/* Mailbox for new frame notifications */
+cy_queue_t _new_frame_mail_box;
+/* Array of image buffers for video frames */
+video_buffer_t _image_buff[NUM_IMAGE_BUFFERS];
+/* Flag indicating device connection status */
+uint8_t _device_connected;
+/* Buffer for general-purpose character data */
+static char _ac[128];
+/* Index of the last used buffer */
+uint8_t last_buffer;
+/* Flag for Logitech camera enable status */
+bool logitech_camera_enabled = 0;
+/* Flag for 3MP camera enable status */
+bool point3mp_camera_enabled = 0;
+/* Flag for 2MP camera enable status */
+bool twomp_camera_enabled = 0;
+/* Flag for unsupported camera status */
+bool Camera_not_supported = 0;
 
-static cy_queue_t _VIDEO_MailBox;                   // Mailbox for video-related messages
-static cy_queue_t _DeviceStateMailBox;              // Mailbox for device state messages
-cy_queue_t _NewFrameMailBox;                        // Mailbox for new frame notifications
-
-VideoBuffer_t _ImageBuff[NUM_IMAGE_BUFFERS];         // Array of image buffers for video frames
-
-uint8_t _device_connected;                          // Flag indicating device connection status
-static char _ac[128];                               // Buffer for general-purpose character data
-uint8_t lastBuffer;                                 // Index of the last used buffer
-bool Logitech_camera_enabled = 0;                    // Flag for Logitech camera enable status
-bool point3mp_camera_enabled = 0;                    // Flag for 3MP camera enable status
-bool Camera_not_supported = 0;                      // Flag for unsupported camera status
-
-// Frame monitoring variables
-float last_frame_time = 0;                          // Timestamp of the last frame received
-float last_check_time = 0;                          // Timestamp of the last frame check
-static int _StreamErrCnt;                           // Counter for stream errors
-float frame_timeout_ms = 10000; // 10 seconds without frames is considered stalled
+/* frame monitoring variables */
+/* Timestamp of the last frame received */
+float last_frame_time = 0;
+/* Timestamp of the last frame check */
+float last_check_time = 0;
+/* Counter for stream errors */
+static int _stream_err_cnt;
+/* Timeout for stalled frames (10 seconds) */
+float frame_timeout_ms = 10000;
 
 #if USE_STATUS_TASK
 static int _StackStat[2048 / sizeof(int)];
@@ -105,74 +118,79 @@ static cy_queue_t                _StatusMailBox;
 static USBH_VIDEO_MESSAGE_STATUS _StatusMailBuf[MAX_VIDEO_INTERFACES];
 #endif
 
-static USBH_NOTIFICATION_HOOK   Hook;
-
-extern cy_semaphore_t usb_semaphore;                // External semaphore for USB operations
-extern vg_lite_buffer_t display_buffer[2];           // External display buffer array
+/* USB host notification hook */
+static USBH_NOTIFICATION_HOOK hook;
+/* External semaphore for USB operations */
+extern cy_semaphore_t usb_semaphore;
+/* External display buffer array */
+extern vg_lite_buffer_t display_buffer[2];
+/* External YUV frame buffers */
 extern vg_lite_buffer_t usb_yuv_frames[NUM_IMAGE_BUFFERS];
 
-/*********************************************************************
-* Function Name: _cbOnAddRemoveDevice
-**********************************************************************
+
+
+/*******************************************************************************
+* Function Name: _add_remove_device_cb
+*******************************************************************************
  * Description:
  *   Callback function invoked when a USB device is added or removed. Executes in
  *   the context of the USBH_Task and handles device connection/disconnection events
  *   by updating buffers, logging events, and signaling tasks. Non-blocking.
  *
  * Input Arguments:
- *   void *pContext - Context pointer (not used)
- *   U8 DevIndex - Index of the device
- *   USBH_DEVICE_EVENT Event - Event type (add or remove)
+ *   void *p_context - Context pointer (not used)
+ *   U8 dev_index - Index of the device
+ *   USBH_DEVICE_EVENT event - event type (add or remove)
  *
  * Return Value:
  *   None
  *
  *******************************************************************************/
-static void _cbOnAddRemoveDevice(void *pContext, U8 DevIndex, USBH_DEVICE_EVENT Event)
+static void _add_remove_device_cb(void *p_context, U8 dev_index, USBH_DEVICE_EVENT event)
 {
-    (void)pContext;
+    (void)p_context;
 
-    switch (Event)
+    switch (event)
     {
         case USBH_DEVICE_EVENT_ADD:
             _device_connected = 1;
-            USBH_Logf_Application("**** VIDEO Device added [%d]\n", DevIndex);
+            USBH_Logf_Application("**** VIDEO Device added [%d]\n", dev_index);
             printf("[USB] Resetting all buffer states for new device\n");
             for (int i = 0; i < NUM_IMAGE_BUFFERS; i++)
             {
-                _ImageBuff[i].BufReady = 0;
-                _ImageBuff[i].NumBytes = 0;
+                _image_buff[i].buff_ready = 0;
+                _image_buff[i].num_bytes = 0;
             }
-            lastBuffer = 0;
+            last_buffer = 0;
             __DMB();
-            (void)cy_rtos_queue_put(&_VIDEO_MailBox, &DevIndex, 0);
+            (void)cy_rtos_queue_put(&_video_mail_box, &dev_index, 0);
             break;
         case USBH_DEVICE_EVENT_REMOVE:
             _device_connected = 0;
-            USBH_Logf_Application("**** VIDEO Device removed [%d]\n", DevIndex);
+            USBH_Logf_Application("**** VIDEO Device removed [%d]\n", dev_index);
 
-            // Reset buffer states
+            /* Reset buffer states */
             printf("[USB] Cleaning up buffer states for removed device\n");
             for (int i = 0; i < NUM_IMAGE_BUFFERS; i++)
             {
-                _ImageBuff[i].BufReady = 0;
-                _ImageBuff[i].NumBytes = 0;
+                _image_buff[i].buff_ready = 0;
+                _image_buff[i].num_bytes = 0;
             }
             __DMB();
-            // Signal main task about disconnection
-            cy_rtos_queue_put(&_DeviceStateMailBox, &DevIndex, 0);
+            /* Signal main task about disconnection */
+            cy_rtos_queue_put(&_device_state_mail_box, &dev_index, 0);
             cy_rtos_semaphore_set(&model_semaphore);
-            _StreamErrCnt = 0;
+            _stream_err_cnt = 0;
             break;
         default:
-            ; // Should never happen
+            ; /* Do nothing */
     }
 }
 
 
 CY_SECTION_ITCM_BEGIN
 /*******************************************************************************
-* Function Name: _cbOnData
+* Function Name: _on_data_cb
 *******************************************************************************
  * Description:
  *   Callback function invoked when video data is received from a USB video device.
@@ -181,90 +199,93 @@ CY_SECTION_ITCM_BEGIN
  *   completion or errors.
  *
  * Input Arguments:
- *   USBH_VIDEO_DEVICE_HANDLE hDevice - Handle to the video device (not used)
- *   USBH_VIDEO_STREAM_HANDLE hStream - Handle to the video stream
- *   USBH_STATUS Status - Status of the data transfer
- *   const U8 *pData - Pointer to the received data
- *   unsigned NumBytes - Number of bytes received
- *   U32 Flags - Flags indicating frame status
- *   void *pUserDataContext - User context pointer (not used)
+ *   USBH_VIDEO_DEVICE_HANDLE h_device - Handle to the video device (not used)
+ *   USBH_VIDEO_STREAM_HANDLE h_stream - Handle to the video stream
+ *   USBH_STATUS status - status of the data transfer
+ *   const U8 *p_data - Pointer to the received data
+ *   unsigned num_bytes - Number of bytes received
+ *   U32 flags - flags indicating frame status
+ *   void *p_user_data_context - User context pointer (not used)
  *
  * Return Value:
  *   None
  *
  *******************************************************************************/
-static void _cbOnData(USBH_VIDEO_DEVICE_HANDLE hDevice, USBH_VIDEO_STREAM_HANDLE hStream, USBH_STATUS Status, const U8 *pData, unsigned NumBytes, U32 Flags, void *pUserDataContext)
+static void _on_data_cb(USBH_VIDEO_DEVICE_HANDLE h_device, USBH_VIDEO_STREAM_HANDLE h_stream, USBH_STATUS status, const U8 *p_data, unsigned num_bytes, U32 flags, void *p_user_data_context)
 {
-    (void)pData;
-    (void)hDevice;
-    (void)pUserDataContext;
+    (void)p_data;
+    (void)h_device;
+    (void)p_user_data_context;
 
     static size_t _frame_bytes = 0;
     static uint8_t _throw_away_frame = 0;
     static uint8_t _current_Buffer = 0;
     static uint16_t _frame_count = 0;
     static uint32_t _error_count = 0;
-//    USBH_STATUS Status;
+
+    USBH_STATUS dev_status;
+    I8 is_stream_stopped;
 
     /* Check if USB is ready to transmit */
-    if (Status == USBH_STATUS_SUCCESS)
+    if (status == USBH_STATUS_SUCCESS)
     {
-        _StreamErrCnt = 0;
+        _stream_err_cnt = 0;
         _error_count = 0;
 
-        bool endOfFrame = (Flags & USBH_UVC_END_OF_FRAME) == USBH_UVC_END_OF_FRAME;
+        bool end_of_frame = (flags & USBH_UVC_END_OF_FRAME) == USBH_UVC_END_OF_FRAME;
 
-        // Process every N-th frame only; (_frame_count / N) FPS
+        /* Process every N-th frame only to reduce computational load ;
+        (_frame_count / N) FPS */
         if (!point3mp_camera_enabled)
         {
-            if (!Logitech_camera_enabled)
+            if (!logitech_camera_enabled)
                 _throw_away_frame |= (_frame_count % FRAMES_TO_SKIP);
             else
                 _throw_away_frame |= (_frame_count % FRAMES_TO_SKIP_LOGITECH);
         }
 
-        if (_frame_bytes + NumBytes > CAMERA_BUFFER_SIZE)
+        if (_frame_bytes + num_bytes > CAMERA_BUFFER_SIZE)
         {
-            printf("[USB Camera] Buffer overflow: %u (%6u)\r\n", _current_Buffer, _frame_bytes + NumBytes);
+            printf("[USB Camera] Buffer overflow: %u (%6u)\r\n", _current_Buffer, _frame_bytes + num_bytes);
             _throw_away_frame = 1;
             _frame_bytes = 0;
         }
 
         if (_throw_away_frame)
         {
-            if (endOfFrame)
+            if (end_of_frame)
             {
                 _frame_count++;
                 _frame_bytes = 0;
-                _throw_away_frame = _ImageBuff[_current_Buffer].BufReady;
+                _throw_away_frame = _image_buff[_current_Buffer].buff_ready;
             }
-            USBH_VIDEO_Ack(hStream);
+            USBH_VIDEO_Ack(h_stream);
             return;
         }
 
-        // Copy data into the current buffer
-        memcpy((uint8_t *)usb_yuv_frames[_current_Buffer].memory + _frame_bytes, pData, NumBytes);
-        _frame_bytes += NumBytes;
+        /* Copy data into the current buffer */
+        memcpy((uint8_t *)usb_yuv_frames[_current_Buffer].memory + _frame_bytes, p_data, num_bytes);
+        _frame_bytes += num_bytes;
 
-        // Switch buffers when a buffer is full or when we register an end-of-frame
-        if (endOfFrame)
+        /* Switch buffers when a buffer is full or when we register an end-of-frame */
+        if (end_of_frame)
         {
             _frame_count++;
 
             if (_frame_bytes == CAMERA_BUFFER_SIZE)
             {
                 /* Processing of the previous frame is DONE, no ready buffer, and wait for a new ready frame */
-                lastBuffer = _current_Buffer;
-                _ImageBuff[_current_Buffer].BufReady = 1;
-                _ImageBuff[_current_Buffer].NumBytes = _frame_bytes;
+                last_buffer = _current_Buffer;
+                _image_buff[_current_Buffer].buff_ready = 1;
+                _image_buff[_current_Buffer].num_bytes = _frame_bytes;
 
                 __DMB();
 
-                // Switch to next buffer
+                /* Switch to next buffer */
                 _current_Buffer = (_current_Buffer + 1) % NUM_IMAGE_BUFFERS;
                 /* If there is only ONE buffer, throw away next frames until processing is completed */
-                _throw_away_frame = _ImageBuff[_current_Buffer].BufReady;
-                if (!Logitech_camera_enabled)
+                _throw_away_frame = _image_buff[_current_Buffer].buff_ready;
+                if (!logitech_camera_enabled)
                 {
                     cy_rslt_t result = cy_rtos_semaphore_get(&usb_semaphore, 0xFFFFFFFF);
                     if (CY_RSLT_SUCCESS != result)
@@ -277,91 +298,114 @@ static void _cbOnData(USBH_VIDEO_DEVICE_HANDLE hDevice, USBH_VIDEO_STREAM_HANDLE
                     cy_rtos_semaphore_set(&usb_semaphore);
                 }
             }
-            // else /* short frame */
+            /* else - short frame */
 
             _frame_bytes = 0;
         }
 
-        USBH_VIDEO_Ack(hStream);
+        USBH_VIDEO_Ack(h_stream);
     }
     else
     {
         _error_count++;
         if (_error_count % 100 == 1)
         {
-            printf("[USB] Transfer error %s (count: %" PRIu32 ")\n", USBH_GetStatusStr(Status), _error_count);
+            printf("[USB] Transfer error %s (count: %" PRIu32 ")\n", USBH_GetStatusStr(status), _error_count);
         }
 
-        _StreamErrCnt++;
-        if (_StreamErrCnt >= 10) {
-            Status = USBH_STATUS_DEVICE_ERROR; // Indicate failure.
-        } else {
-            if ((Status != USBH_STATUS_DEVICE_REMOVED)) {
-                // do nothing
+        _stream_err_cnt++;
+        if (_stream_err_cnt >= 10)
+        {
+            /* Indicate failure */
+            dev_status = USBH_STATUS_DEVICE_ERROR;
+        }
+        else
+        {
+            if (status != USBH_STATUS_DEVICE_REMOVED)
+            {
+                dev_status = USBH_VIDEO_GetStreamState(h_stream, &is_stream_stopped);
+                if (dev_status == USBH_STATUS_SUCCESS)
+                {
+                    if (is_stream_stopped == 1)
+                    {
+                        dev_status = USBH_VIDEO_RestartStream(h_stream);
+                        if (dev_status == USBH_STATUS_SUCCESS)
+                        {
+                            USBH_Logf_Application("_on_data_cb: Restarted video stream after packet error");
+                        }
+                        else
+                        {
+                            USBH_Logf_Application("_on_data_cb: USBH_VIDEO_Restartstream failed %s", USBH_GetStatusStr(status));
+                        }
+                    }
+                    else
+                    {
+                        USBH_Warnf_Application("_on_data_cb: _stream_err_cnt %d, but stream is running", _stream_err_cnt);
+                    }
+                }
+                else
+                {
+                    USBH_Logf_Application("_on_data_cb: USBH_VIDEO_GetstreamState failed %s", USBH_GetStatusStr(status));
+                }
             }
         }
 
-        //
-        // If the consecutive error count reaches max,
-        // the device was disconnected,
-        // or the stream could not be restarted - remove the video device.
-        //
-        if ((Status == USBH_STATUS_DEVICE_REMOVED) ||
-            (Status  != USBH_STATUS_SUCCESS)) {
-
-            USBH_Logf_Application("_cbOnData device removed or max conseq. errors exceeded");
-            U8 MBEvent = 0xff; // Device disconnected or had an error
-            cy_rtos_queue_put(&_DeviceStateMailBox, &MBEvent, 0);
-            _StreamErrCnt = 0;
+        /* If the consecutive error count reaches max, the device was disconnected, or the stream could not be restarted - remove the video device */
+        if ((status == USBH_STATUS_DEVICE_REMOVED) || (dev_status != USBH_STATUS_SUCCESS))
+        {
+            USBH_Logf_Application("_on_data_cb: device removed or max conseq. errors exceeded");
+            /* Device disconnected or had an error */
+            U8 mb_event = 0xff;
+            cy_rtos_queue_put(&_device_state_mail_box, &mb_event, 0);
+            _stream_err_cnt = 0;
         }
 
-        // Reset frame state on error but don't change buffer states
+        /* Reset frame state on error but don't change buffer states */
         _frame_bytes = 0;
         _throw_away_frame = 0;
-        USBH_VIDEO_Ack(hStream);
-
+        USBH_VIDEO_Ack(h_stream);
         return;
     }
 }
 CY_SECTION_ITCM_END
 
 /*******************************************************************************
-* Function Name: _GetFrameIntervals
+* Function Name: _get_frame_intervals
 *******************************************************************************
  * Description:
  *   Retrieves and formats frame interval information for a video frame into a
  *   string buffer for logging or display purposes.
  *
  * Input Arguments:
- *   USBH_VIDEO_FRAME_INFO *pFrame - Pointer to the frame information structure
+ *   USBH_VIDEO_FRAME_INFO *p_frame - Pointer to the frame information structure
  *
  * Return Value:
  *   None
  *
  *******************************************************************************/
-static void _GetFrameIntervals(USBH_VIDEO_FRAME_INFO *pFrame)
+static void _get_frame_intervals(USBH_VIDEO_FRAME_INFO *p_frame)
 {
     char ac[32];
     unsigned i;
 
     USBH_MEMSET(_ac, 0, sizeof(_ac));
     USBH_MEMSET(ac, 0, sizeof(ac));
-    for (i = 0; i < pFrame->bFrameIntervalType; i++)
+    for (i = 0; i < p_frame->bFrameIntervalType; i++)
     {
         if (i == 0)
         {
-            SEGGER_snprintf(ac, sizeof(ac), "%lu", pFrame->u.dwFrameInterval[i]);
+            SEGGER_snprintf(ac, sizeof(ac), "%lu", p_frame->u.dwFrameInterval[i]);
         }
         else
         {
-            SEGGER_snprintf(ac, sizeof(ac), ", %lu", pFrame->u.dwFrameInterval[i]);
+            SEGGER_snprintf(ac, sizeof(ac), ", %lu", p_frame->u.dwFrameInterval[i]);
         }
         strncat(_ac, ac, sizeof(_ac) - (strlen(_ac) + 1));
     }
 }
 
 /*******************************************************************************
- * Function Name: _TermType2Str
+ * Function Name: _term_type_to_str
  *******************************************************************************
  * Description:
  *   Converts a terminal type code to a human-readable string representation.
@@ -373,7 +417,7 @@ static void _GetFrameIntervals(USBH_VIDEO_FRAME_INFO *pFrame)
  *   const char* - String representation of the terminal type
  *
  *******************************************************************************/
-static const char* _TermType2Str(U8 Type)
+static const char* _term_type_to_str(U8 Type)
 {
     switch (Type)
     {
@@ -393,7 +437,7 @@ static const char* _TermType2Str(U8 Type)
 }
 
 /*******************************************************************************
- * Function Name: _FormatType2Str
+ * Function Name: _format_type_to_str
  *******************************************************************************
  * Description:
  *   Converts a video format type code to a human-readable string representation.
@@ -405,7 +449,7 @@ static const char* _TermType2Str(U8 Type)
  *   const char* - String representation of the video format type
  *
  *******************************************************************************/
-static const char* _FormatType2Str(U8 Type)
+static const char* _format_type_to_str(U8 Type)
 {
     switch (Type)
     {
@@ -421,7 +465,7 @@ static const char* _FormatType2Str(U8 Type)
 }
 
 /*******************************************************************************
- * Function Name: _FrameType2Str
+ * Function Name: _frame_type_to_str
  *******************************************************************************
  * Description:
  *   Converts a video frame type code to a human-readable string representation.
@@ -433,7 +477,7 @@ static const char* _FormatType2Str(U8 Type)
  *   const char* - String representation of the video frame type
  *
  *******************************************************************************/
-static const char* _FrameType2Str(U8 Type)
+static const char* _frame_type_to_str(U8 Type)
 {
     switch (Type)
     {
@@ -449,133 +493,133 @@ static const char* _FrameType2Str(U8 Type)
 }
 
 /*******************************************************************************
- * Function Name: _PrintInputTermInfo
+ * Function Name: _print_input_term_info
  *******************************************************************************
  * Description:
  *   Logs information about an input terminal, specifically for camera terminals.
  *
  * Input Arguments:
- *   USBH_VIDEO_TERM_UNIT_INFO *pTermInfo - Pointer to the terminal information structure
+ *   USBH_VIDEO_TERM_UNIT_INFO *p_term_info - Pointer to the terminal information structure
  *
  * Return Value:
  *   None
  *
  *******************************************************************************/
-static void _PrintInputTermInfo(USBH_VIDEO_TERM_UNIT_INFO *pTermInfo)
+static void _print_input_term_info(USBH_VIDEO_TERM_UNIT_INFO *p_term_info)
 {
-    if (pTermInfo->u.Terminal.TerminalType != USBH_VIDEO_ITT_CAMERA)
+    if (p_term_info->u.Terminal.TerminalType != USBH_VIDEO_ITT_CAMERA)
     {
-        USBH_Logf_Application("  Input terminal type 0x%x is not handled...", pTermInfo->u.Terminal.TerminalType);
+        USBH_Logf_Application("  Input terminal type 0x%x is not handled...", p_term_info->u.Terminal.TerminalType);
     }
     else
     {
-        USBH_Logf_Application("  Associated terminal ID %d", pTermInfo->u.Terminal.u.CameraTerm.bAssocTerminal);
+        USBH_Logf_Application("  Associated terminal ID %d", p_term_info->u.Terminal.u.CameraTerm.bAssocTerminal);
         USBH_Logf_Application(
                 "  Objective focal length min %d",
-                pTermInfo->u.Terminal.u.CameraTerm.wObjectiveFocalLengthMin);
+                p_term_info->u.Terminal.u.CameraTerm.wObjectiveFocalLengthMin);
         USBH_Logf_Application(
                 "  Objective focal length max %d",
-                pTermInfo->u.Terminal.u.CameraTerm.wObjectiveFocalLengthMax);
-        USBH_Logf_Application("  Ocular focal length %d", pTermInfo->u.Terminal.u.CameraTerm.wOcularFocalLength);
-        USBH_Logf_Application("  Control Size %d", pTermInfo->u.Terminal.u.CameraTerm.bControlSize);
+                p_term_info->u.Terminal.u.CameraTerm.wObjectiveFocalLengthMax);
+        USBH_Logf_Application("  Ocular focal length %d", p_term_info->u.Terminal.u.CameraTerm.wOcularFocalLength);
+        USBH_Logf_Application("  Control Size %d", p_term_info->u.Terminal.u.CameraTerm.bControlSize);
     }
 }
 
 /*******************************************************************************
- * Function Name: _PrintOutputTermInfo
+ * Function Name: _print_output_term_info
  *******************************************************************************
  * Description:
  *   Logs information about an output terminal, specifically for streaming terminals.
  *
  * Input Arguments:
- *   USBH_VIDEO_TERM_UNIT_INFO *pTermInfo - Pointer to the terminal information structure
+ *   USBH_VIDEO_TERM_UNIT_INFO *p_term_info - Pointer to the terminal information structure
  *
  * Return Value:
  *   None
  *
  *******************************************************************************/
-static void _PrintOutputTermInfo(USBH_VIDEO_TERM_UNIT_INFO *pTermInfo)
+static void _print_output_term_info(USBH_VIDEO_TERM_UNIT_INFO *p_term_info)
 {
-    if (pTermInfo->u.Terminal.TerminalType != USBH_VIDEO_TT_STREAMING)
+    if (p_term_info->u.Terminal.TerminalType != USBH_VIDEO_TT_STREAMING)
     {
-        USBH_Logf_Application("  Ouput terminal type 0x%x is not handled...", pTermInfo->u.Terminal.TerminalType);
+        USBH_Logf_Application("  Ouput terminal type 0x%x is not handled...", p_term_info->u.Terminal.TerminalType);
     }
     else
     {
-        USBH_Logf_Application("  Associated terminal ID %d", pTermInfo->u.Terminal.u.OutputTerm.bAssocTerminal);
-        USBH_Logf_Application("  Source ID %d", pTermInfo->u.Terminal.u.OutputTerm.bSourceID);
+        USBH_Logf_Application("  Associated terminal ID %d", p_term_info->u.Terminal.u.OutputTerm.bAssocTerminal);
+        USBH_Logf_Application("  Source ID %d", p_term_info->u.Terminal.u.OutputTerm.bSourceID);
     }
 }
 
 /*******************************************************************************
- * Function Name: _PrintSelectorUnitInfo
+ * Function Name: _print_selector_unit_info
  *******************************************************************************
  * Description:
  *   Logs information about a selector unit, including its input pins.
  *
  * Input Arguments:
- *   USBH_VIDEO_TERM_UNIT_INFO *pTermInfo - Pointer to the terminal information structure
+ *   USBH_VIDEO_TERM_UNIT_INFO *p_term_info - Pointer to the terminal information structure
  *
  * Return Value:
  *   None
  *
  *******************************************************************************/
-static void _PrintSelectorUnitInfo(USBH_VIDEO_TERM_UNIT_INFO *pTermInfo)
+static void _print_selector_unit_info(USBH_VIDEO_TERM_UNIT_INFO *p_term_info)
 {
     unsigned i;
 
-    USBH_Logf_Application("  Unit ID %d", pTermInfo->bTermUnitID);
-    USBH_Logf_Application("  Number of pins %d", pTermInfo->u.SelectUnit.bNrInPins);
-    for (i = 0; i < pTermInfo->u.SelectUnit.bNrInPins; i++)
+    USBH_Logf_Application("  Unit ID %d", p_term_info->bTermUnitID);
+    USBH_Logf_Application("  Number of pins %d", p_term_info->u.SelectUnit.bNrInPins);
+    for (i = 0; i < p_term_info->u.SelectUnit.bNrInPins; i++)
     {
-        USBH_Logf_Application("  Input pin: %d", pTermInfo->u.SelectUnit.baSourceID[i]);
+        USBH_Logf_Application("  Input pin: %d", p_term_info->u.SelectUnit.baSourceID[i]);
     }
 }
 
 /*******************************************************************************
- * Function Name: _PrintProcessingUnitInfo
+ * Function Name: _print_processing_unit_info
  *******************************************************************************
  * Description:
  *   Logs information about a processing unit, including its source and control details.
  *
  * Input Arguments:
- *   USBH_VIDEO_TERM_UNIT_INFO *pTermInfo - Pointer to the terminal information structure
+ *   USBH_VIDEO_TERM_UNIT_INFO *p_term_info - Pointer to the terminal information structure
  *
  * Return Value:
  *   None
  *
  *******************************************************************************/
-static void _PrintProcessingUnitInfo(USBH_VIDEO_TERM_UNIT_INFO *pTermInfo)
+static void _print_processing_unit_info(USBH_VIDEO_TERM_UNIT_INFO *p_term_info)
 {
-    USBH_Logf_Application("  Unit ID %d", pTermInfo->bTermUnitID);
-    USBH_Logf_Application("  Source ID %d", pTermInfo->u.ProcessUnit.bSourceID);
-    USBH_Logf_Application("  Max multiplier %d", pTermInfo->u.ProcessUnit.wMaxMultiplier);
-    USBH_Logf_Application("  Control size %d", pTermInfo->u.ProcessUnit.bControlSize);
+    USBH_Logf_Application("  Unit ID %d", p_term_info->bTermUnitID);
+    USBH_Logf_Application("  Source ID %d", p_term_info->u.ProcessUnit.bSourceID);
+    USBH_Logf_Application("  Max multiplier %d", p_term_info->u.ProcessUnit.wMaxMultiplier);
+    USBH_Logf_Application("  Control size %d", p_term_info->u.ProcessUnit.bControlSize);
 }
 
 /*******************************************************************************
- * Function Name: _PrintExtensionUnitInfo
+ * Function Name: _print_extension_unit_info
  *
  * Description:
  *   Logs information about an extension unit, including its GUID, pins, and controls.
  *
  * Input Arguments:
- *   USBH_VIDEO_TERM_UNIT_INFO *pTermInfo - Pointer to the terminal information structure
+ *   USBH_VIDEO_TERM_UNIT_INFO *p_term_info - Pointer to the terminal information structure
  *
  * Return Value:
  *   None
  *
  *******************************************************************************/
-static void _PrintExtensionUnitInfo(USBH_VIDEO_TERM_UNIT_INFO *pTermInfo)
+static void _print_extension_unit_info(USBH_VIDEO_TERM_UNIT_INFO *p_term_info)
 {
-    USBH_Logf_Application("  Unit ID %d", pTermInfo->bTermUnitID);
-    USBH_Logf_Application("  Unit GUID 0x%x...", pTermInfo->u.ExtUnit.guidExtensionCode[0]);
-    USBH_Logf_Application("  Number of pins %d", pTermInfo->u.ExtUnit.bNrInPins);
-    USBH_Logf_Application("  Controls size %d", pTermInfo->u.ExtUnit.bControlSize);
+    USBH_Logf_Application("  Unit ID %d", p_term_info->bTermUnitID);
+    USBH_Logf_Application("  Unit GUID 0x%x...", p_term_info->u.ExtUnit.guidExtensionCode[0]);
+    USBH_Logf_Application("  Number of pins %d", p_term_info->u.ExtUnit.bNrInPins);
+    USBH_Logf_Application("  Controls size %d", p_term_info->u.ExtUnit.bControlSize);
 }
 
 /*******************************************************************************
- * Function Name: _PrintTermUnitInfo
+ * Function Name: _print_term_unit_info
  *******************************************************************************
  * Description:
  *   Logs information about a terminal or unit based on its type, delegating to
@@ -583,43 +627,44 @@ static void _PrintExtensionUnitInfo(USBH_VIDEO_TERM_UNIT_INFO *pTermInfo)
  *   prevent flooding terminal output.
  *
  * Input Arguments:
- *   USBH_VIDEO_TERM_UNIT_INFO *pTermInfo - Pointer to the terminal or unit information structure
+ *   USBH_VIDEO_TERM_UNIT_INFO *p_term_info - Pointer to the terminal or unit information structure
  *
  * Return Value:
  *   None
  *
  *******************************************************************************/
-static void _PrintTermUnitInfo(USBH_VIDEO_TERM_UNIT_INFO *pTermInfo)
+static void _print_term_unit_info(USBH_VIDEO_TERM_UNIT_INFO *p_term_info)
 {
-    USBH_Logf_Application("  Terminal/Unit ID %d type %s", pTermInfo->bTermUnitID, _TermType2Str(pTermInfo->Type));
-    switch (pTermInfo->Type)
+    USBH_Logf_Application("  Terminal/Unit ID %d type %s", p_term_info->bTermUnitID, _term_type_to_str(p_term_info->Type));
+    switch (p_term_info->Type)
     {
         case USBH_VIDEO_VC_INPUT_TERMINAL:
-            _PrintInputTermInfo(pTermInfo);
+            _print_input_term_info(p_term_info);
             break;
         case USBH_VIDEO_VC_OUTPUT_TERMINAL:
-            _PrintOutputTermInfo(pTermInfo);
+            _print_output_term_info(p_term_info);
             break;
         case USBH_VIDEO_VC_SELECTOR_UNIT:
-            _PrintSelectorUnitInfo(pTermInfo);
+            _print_selector_unit_info(p_term_info);
             break;
         case USBH_VIDEO_VC_PROCESSING_UNIT:
-            _PrintProcessingUnitInfo(pTermInfo);
+            _print_processing_unit_info(p_term_info);
             break;
         case USBH_VIDEO_VC_EXTENSION_UNIT:
-            _PrintExtensionUnitInfo(pTermInfo);
+            _print_extension_unit_info(p_term_info);
             break;
         default:
-            USBH_Logf_Application("  Type %d is not handled...", pTermInfo->Type);
+            USBH_Logf_Application("  Type %d is not handled...", p_term_info->Type);
             break;
     }
     USBH_Logf_Application("---------------");
-    cy_rtos_delay_milliseconds(10); // Small delay so that we do not flood terminal output
+    /* Small delay so that we do not flood terminal output */
+    cy_rtos_delay_milliseconds(10);
 }
 
 
 /*******************************************************************************
- * Function Name: _OnDevReady
+ * Function Name: _on_dev_ready
 *******************************************************************************
  * Description:
  *   Handles the initialization and configuration of a USB video device when it is
@@ -627,87 +672,99 @@ static void _PrintTermUnitInfo(USBH_VIDEO_TERM_UNIT_INFO *pTermInfo)
  *   and manages frame reception until the device is disconnected or an error occurs.
  *
  * Input Arguments:
- *   U8 DevIndex - Index of the video device
+ *   U8 dev_index - Index of the video device
  *
  * Return Value:
  *   None
  *
  *******************************************************************************/
-static void _OnDevReady(U8 DevIndex)
+static void _on_dev_ready(U8 dev_index)
 {
-    USBH_VIDEO_INPUT_HEADER_INFO InputHeaderInfo;
-    USBH_VIDEO_DEVICE_HANDLE hDevice;
-    USBH_VIDEO_INTERFACE_INFO IfaceInfo;
-    USBH_VIDEO_TERM_UNIT_INFO TermInfo;
-    USBH_VIDEO_STREAM_CONFIG StreamInfo;
-    USBH_VIDEO_COLOR_INFO ColorInfo;
-    USBH_VIDEO_STREAM_HANDLE Stream;
-    USBH_VIDEO_FORMAT_INFO Format;
-    USBH_VIDEO_FRAME_INFO Frame;
-    USBH_STATUS Status;
-    unsigned RequestedFrameIntervalIdx;
-    unsigned RequestedFormatIdx;
-    unsigned RequestedFrameIdx;
-    unsigned NumFrameDescriptors;
-    unsigned Found;
+    USBH_VIDEO_INPUT_HEADER_INFO input_header_info;
+    USBH_VIDEO_DEVICE_HANDLE h_device;
+    USBH_VIDEO_INTERFACE_INFO iface_info;
+    USBH_VIDEO_TERM_UNIT_INFO term_info;
+    USBH_VIDEO_STREAM_CONFIG stream_info;
+    USBH_VIDEO_COLOR_INFO color_info;
+    USBH_VIDEO_STREAM_HANDLE stream;
+    USBH_VIDEO_FORMAT_INFO format;
+    USBH_VIDEO_FRAME_INFO frame;
+    USBH_STATUS status;
+    unsigned requested_frame_interval_idx;
+    unsigned requested_format_idx;
+    unsigned requested_frame_idx;
+    unsigned num_frame_descriptors;
+    unsigned found;
     unsigned i;
     unsigned j;
     unsigned k;
     int r;
-    U8 MBEvent;
-    U32 FrameIntervalfrmvidpid;
+    U8 mb_event;
+    U32 frame_interval_frm_vidpid;
 #if USE_STATUS_TASK
-  USBH_VIDEO_MESSAGE_STATUS MsgStat;
+    USBH_VIDEO_MESSAGE_STATUS msg_state;
 #endif
-    // Open the device, the device index is retrieved from the notification callback
-    RequestedFormatIdx = 0;
-    RequestedFrameIdx = 0;
-    RequestedFrameIntervalIdx = 0;
-    Found = 0;
+    /* Open the device, the device index is retrieved from the notification callback */
+    requested_format_idx = 0;
+    requested_frame_idx = 0;
+    requested_frame_interval_idx = 0;
+    found = 0;
 
-    memset(&hDevice, 0, sizeof(hDevice));
-    memset(&Stream, 0, sizeof(Stream));
-    // Add timeout tracking for device initialization
+    memset(&h_device, 0, sizeof(h_device));
+    memset(&stream, 0, sizeof(stream));
+    /* Add timeout tracking for device initialization */
     float timeout_start_time = ifx_time_get_ms_f();
-    float timeout_ms = 5000; // 5 seconds timeout
+    /* 5 seconds timeout */
+    float timeout_ms = 5000;
 
-    Status = USBH_VIDEO_Open(DevIndex, &hDevice);
-    if (Status != USBH_STATUS_SUCCESS)
+    status = USBH_VIDEO_Open(dev_index, &h_device);
+    if (status != USBH_STATUS_SUCCESS)
     {
-        USBH_Logf_Application("USBH_VIDEO_Open returned with error: %s", USBH_GetStatusStr(Status));
+        USBH_Logf_Application("USBH_VIDEO_Open returned with error: %s", USBH_GetStatusStr(status));
         return;
     }
 
-    Status = USBH_VIDEO_GetInterfaceInfo(hDevice, &IfaceInfo);
-    if (Status != USBH_STATUS_SUCCESS)
+    status = USBH_VIDEO_GetInterfaceInfo(h_device, &iface_info);
+    if (status != USBH_STATUS_SUCCESS)
     {
-        USBH_Logf_Application("USBH_VIDEO_GetInterfaceInfo returned with error: %s", USBH_GetStatusStr(Status));
+        USBH_Logf_Application("USBH_VIDEO_GetInterfaceInfo returned with error: %s", USBH_GetStatusStr(status));
         return;
     }
     USBH_Logf_Application("====================================================================");
-    USBH_Logf_Application("Vendor  Id = 0x%0.4X", IfaceInfo.VendorId);
-    USBH_Logf_Application("Product Id = 0x%0.4X", IfaceInfo.ProductId);
+    USBH_Logf_Application("Vendor  Id = 0x%0.4X", iface_info.VendorId);
+    USBH_Logf_Application("Product Id = 0x%0.4X", iface_info.ProductId);
 
-    if ((LOGI_TECH_C920_VID == IfaceInfo.VendorId) && (LOGI_TECH_C920_PID == IfaceInfo.ProductId))
+    if ((LOGI_TECH_C920_VID == iface_info.VendorId) && (LOGI_TECH_C920_PID == iface_info.ProductId))
     {
         Camera_not_supported = 0;
-        FrameIntervalfrmvidpid = FRAME_INTERVAL_1;
-        Logitech_camera_enabled = 1;
+        frame_interval_frm_vidpid = FRAME_INTERVAL_1;
+        logitech_camera_enabled = 1;
         point3mp_camera_enabled = 0;
+        twomp_camera_enabled = 0;
     }
-    else if ((HBV_CAM_0P3_VID == IfaceInfo.VendorId) && (HBV_CAM_0P3_PID == IfaceInfo.ProductId))
+    else if ((LOGI_TECH_C920_VID == iface_info.VendorId) && (LOGI_TECH_C920e_PID == iface_info.ProductId))
     {
         Camera_not_supported = 0;
-        FrameIntervalfrmvidpid = FRAME_INTERVAL_2;
-        Logitech_camera_enabled = 0;
+        frame_interval_frm_vidpid = FRAME_INTERVAL_1;
+        logitech_camera_enabled = 1;
+        point3mp_camera_enabled = 0;
+        twomp_camera_enabled = 0;
+    }
+    else if ((HBV_CAM_0P3_VID == iface_info.VendorId) && (HBV_CAM_0P3_PID == iface_info.ProductId))
+    {
+        Camera_not_supported = 0;
+        frame_interval_frm_vidpid = FRAME_INTERVAL_2;
+        logitech_camera_enabled = 0;
         point3mp_camera_enabled = 1;
+        twomp_camera_enabled = 0;
     }
-    else if ((HBV_CAM_2P0_VID == IfaceInfo.VendorId) && (HBV_CAM_2P0_PID == IfaceInfo.ProductId))
+    else if ((HBV_CAM_2P0_VID == iface_info.VendorId) && (HBV_CAM_2P0_PID == iface_info.ProductId))
     {
         Camera_not_supported = 0;
-        FrameIntervalfrmvidpid = FRAME_INTERVAL;
-        Logitech_camera_enabled = 0;
+        frame_interval_frm_vidpid = FRAME_INTERVAL;
+        logitech_camera_enabled = 0;
         point3mp_camera_enabled = 0;
+        twomp_camera_enabled = 1;
     }
     else
     {
@@ -716,227 +773,228 @@ static void _OnDevReady(U8 DevIndex)
         return;
     }
 
-    // List all terminals/units
-    for (i = 0; i < IfaceInfo.NumTermUnits; i++)
+    /* List all terminals/units */
+    for (i = 0; i < iface_info.NumTermUnits; i++)
     {
-        // Check if we've been waiting too long for initialization
+        /* Check if we've been waiting too long for initialization */
         if ((ifx_time_get_ms_f() - timeout_start_time) > timeout_ms)
         {
             USBH_Logf_Application("Timeout waiting for device initialization during terminal enumeration. Resetting...");
-            Found = 0;
+            found = 0;
             goto cleanup;
         }
 
-        Status = USBH_VIDEO_GetTermUnitInfo(hDevice, i, &TermInfo);
-        if (Status == USBH_STATUS_SUCCESS)
+        status = USBH_VIDEO_GetTermUnitInfo(h_device, i, &term_info);
+        if (status == USBH_STATUS_SUCCESS)
         {
-            _PrintTermUnitInfo(&TermInfo);
+            _print_term_unit_info(&term_info);
         }
         else
         {
-            USBH_Logf_Application("USBH_VIDEO_GetTermUnitInfo returned with error: %s", USBH_GetStatusStr(Status));
+            USBH_Logf_Application("USBH_VIDEO_GetTermUnitInfo returned with error: %s", USBH_GetStatusStr(status));
         }
     }
 
-    // This sets the text information fields and the webcam frame window visible
-    memset(&IfaceInfo, 0, sizeof(IfaceInfo));
-    if (Status != USBH_STATUS_SUCCESS && Status != USBH_STATUS_NOT_FOUND)
+    /* This sets the text information fields and the webcam frame window visible */
+    memset(&iface_info, 0, sizeof(iface_info));
+    if (status != USBH_STATUS_SUCCESS && status != USBH_STATUS_NOT_FOUND)
     {
-        USBH_Logf_Application("USBH_VIDEO_GetFirstTermUnitInfo returned with error: %s", USBH_GetStatusStr(Status));
+        USBH_Logf_Application("USBH_VIDEO_GetFirstTermUnitInfo returned with error: %s", USBH_GetStatusStr(status));
     }
     else
     {
-        // Configure the VIDEO device
-        Status = USBH_VIDEO_GetInputHeader(hDevice, &InputHeaderInfo);
-        if (Status != USBH_STATUS_SUCCESS)
+        /* Configure the VIDEO device */
+        status = USBH_VIDEO_GetInputHeader(h_device, &input_header_info);
+        if (status != USBH_STATUS_SUCCESS)
         {
-            USBH_Logf_Application("USBH_VIDEO_GetInputHeader returned with error: %s", USBH_GetStatusStr(Status));
+            USBH_Logf_Application("USBH_VIDEO_GetInputHeader returned with error: %s", USBH_GetStatusStr(status));
         }
         else
         {
             USBH_Logf_Application(
                     "Video Interface with index %d (%d formats reported, still capture method %d):",
-                    DevIndex,
-                    InputHeaderInfo.bNumFormats,
-                    InputHeaderInfo.bStillCaptureMethod);
-            // Iterate over all formats
-            for (i = 0; i < InputHeaderInfo.bNumFormats; i++)
+                    dev_index,
+                    input_header_info.bNumFormats,
+                    input_header_info.bStillCaptureMethod);
+            /* Iterate over all formats */
+            for (i = 0; i < input_header_info.bNumFormats; i++)
             {
-                // Check if we've been waiting too long for initialization
+                /* Check if we've been waiting too long for initialization */
                 if ((ifx_time_get_ms_f() - timeout_start_time) > timeout_ms)
                 {
                     USBH_Logf_Application("Timeout waiting for device initialization during format discovery. Resetting...");
-                    Found = 0;
+                    found = 0;
                     break;
                 }
 
-                Status = USBH_VIDEO_GetFormatInfo(hDevice, i, &Format);
-                if (Status != USBH_STATUS_SUCCESS)
+                status = USBH_VIDEO_GetFormatInfo(h_device, i, &format);
+                if (status != USBH_STATUS_SUCCESS)
                 {
                     USBH_Logf_Application(
-                            "USBH_VIDEO_GetFormatInfo returned with error: %s",
-                            USBH_GetStatusStr(Status));
+                            "USBH_VIDEO_GetformatInfo returned with error: %s",
+                            USBH_GetStatusStr(status));
                 }
                 else
                 {
-                    switch (Format.FormatType)
+                    switch (format.FormatType)
                     {
                         case USBH_VIDEO_VS_FORMAT_UNCOMPRESSED:
-                            NumFrameDescriptors = Format.u.UncompressedFormat.bNumFrameDescriptors;
+                            num_frame_descriptors = format.u.UncompressedFormat.bNumFrameDescriptors;
                             break;
                         case USBH_VIDEO_VS_FORMAT_MJPEG:
-                            NumFrameDescriptors = Format.u.MJPEG_Format.bNumFrameDescriptors;
+                            num_frame_descriptors = format.u.MJPEG_Format.bNumFrameDescriptors;
                             break;
                         case USBH_VIDEO_VS_FORMAT_FRAME_BASED:
-                            NumFrameDescriptors = Format.u.H264_Format.bNumFrameDescriptors;
+                            num_frame_descriptors = format.u.H264_Format.bNumFrameDescriptors;
                             break;
                         default:
-                            USBH_Logf_Application("  Format type %d is not supported!:", Format.FormatType);
-                            Status = USBH_STATUS_ERROR;
+                            USBH_Logf_Application("  format type %d is not supported!:", format.FormatType);
+                            status = USBH_STATUS_ERROR;
                     }
 
-                    // If we have a valid format type - proceed with parsing
-                    if (Status == USBH_STATUS_SUCCESS)
+                    /* If we have a valid format type - proceed with parsing */
+                    if (status == USBH_STATUS_SUCCESS)
                     {
-                        USBH_Logf_Application("  Format Index %d, type %s:", i, _FormatType2Str(Format.FormatType));
-                        // Check if the format has a color matching descriptor
-                        Status = USBH_VIDEO_GetColorMatchingInfo(hDevice, i, &ColorInfo);
-                        if (Status != USBH_STATUS_SUCCESS)
+                        USBH_Logf_Application("  format Index %d, type %s:", i, _format_type_to_str(format.FormatType));
+                        /* Check if the format has a color matching descriptor */
+                        status = USBH_VIDEO_GetColorMatchingInfo(h_device, i, &color_info);
+                        if (status != USBH_STATUS_SUCCESS)
                         {
-                            USBH_Logf_Application("  No color matching descriptor (%s)", USBH_GetStatusStr(Status));
+                            USBH_Logf_Application("  No color matching descriptor (%s)", USBH_GetStatusStr(status));
                         }
                         else
                         {
                             USBH_Logf_Application(
                                     "  Color matching descriptor: bColorPrimaries 0x%x, bTransferCharacteristics 0x%x, bMatrixCoefficients 0x%x",
-                                    ColorInfo.bColorPrimaries,
-                                    ColorInfo.bTransferCharacteristics,
-                                    ColorInfo.bMatrixCoefficients);
+                                    color_info.bColorPrimaries,
+                                    color_info.bTransferCharacteristics,
+                                    color_info.bMatrixCoefficients);
                         }
 
-                        // Iterate over all frame types
-                        for (j = 0; j < NumFrameDescriptors; j++)
+                        /* Iterate over all frame types */
+                        for (j = 0; j < num_frame_descriptors; j++)
                         {
-                            // Check timeout during frame discovery
+                            /* Check timeout during frame discovery */
                             if ((ifx_time_get_ms_f() - timeout_start_time) > timeout_ms)
                             {
                                 USBH_Logf_Application("Timeout waiting for device initialization during frame discovery. Resetting...");
-                                Found = 0;
+                                found = 0;
                                 break;
                             }
 
-                            Status = USBH_VIDEO_GetFrameInfo(hDevice, i, j, &Frame);
-                            if (Status != USBH_STATUS_SUCCESS)
+                            status = USBH_VIDEO_GetFrameInfo(h_device, i, j, &frame);
+                            if (status != USBH_STATUS_SUCCESS)
                             {
                                 USBH_Logf_Application(
-                                        "USBH_VIDEO_GetFrameInfo returned with error: %s",
-                                        USBH_GetStatusStr(Status));
+                                        "USBH_VIDEO_GetframeInfo returned with error: %s",
+                                        USBH_GetStatusStr(status));
                             }
                             else
                             {
-                                if (Frame.bFrameIntervalType == 0)
+                                if (frame.bFrameIntervalType == 0)
                                 {
-                                    // Frame interval type zero (continuous frame interval) is almost never used by any device
+                                    /* frame interval type zero (continuous frame interval) is almost never used by any device */
                                     USBH_Logf_Application(
-                                            "    Frame Index %d, type %s, x %d, y %d, %d min frame interval, %d max frame interval, %d interval step",
+                                            "    frame Index %d, type %s, x %d, y %d, %d min frame interval, %d max frame interval, %d interval step",
                                             j,
-                                            _FrameType2Str(Frame.FrameType),
-                                            Frame.wWidth,
-                                            Frame.wHeight,
-                                            Frame.bFrameIntervalType,
-                                            Frame.u.dwMinFrameInterval,
-                                            Frame.u.dwMaxFrameInterval,
-                                            Frame.u.dwFrameIntervalStep);
+                                            _frame_type_to_str(frame.FrameType),
+                                            frame.wWidth,
+                                            frame.wHeight,
+                                            frame.bFrameIntervalType,
+                                            frame.u.dwMinFrameInterval,
+                                            frame.u.dwMaxFrameInterval,
+                                            frame.u.dwFrameIntervalStep);
                                 }
                                 else
                                 {
-                                    _GetFrameIntervals(&Frame);
+                                    _get_frame_intervals(&frame);
                                     USBH_Logf_Application(
-                                            "    Frame Index %d, type %s, x %d, y %d, intervals (%d): { %s }",
+                                            "    frame Index %d, type %s, x %d, y %d, intervals (%d): { %s }",
                                             j,
-                                            _FrameType2Str(Frame.FrameType),
-                                            Frame.wWidth,
-                                            Frame.wHeight,
-                                            Frame.bFrameIntervalType,
+                                            _frame_type_to_str(frame.FrameType),
+                                            frame.wWidth,
+                                            frame.wHeight,
+                                            frame.bFrameIntervalType,
                                             _ac);
-                                    // Try to find a setting which matches our defines
-                                    if (Format.FormatType == FORMAT)
+                                    /* Try to find a setting which matches our defines */
+                                    if (format.FormatType == FORMAT)
                                     {
-                                        if ((Frame.wHeight == CAMERA_HEIGHT) && (Frame.wWidth == CAMERA_WIDTH))
+                                        if ((frame.wHeight == CAMERA_HEIGHT) && (frame.wWidth == CAMERA_WIDTH))
                                         {
-                                            for (k = 0; k < Frame.bFrameIntervalType; k++)
+                                            for (k = 0; k < frame.bFrameIntervalType; k++)
                                             {
-                                                if (Frame.u.dwFrameInterval[k] == FrameIntervalfrmvidpid)
+                                                if (frame.u.dwFrameInterval[k] == frame_interval_frm_vidpid)
                                                 {
-                                                    if (Found != 1u)
+                                                    if (found != 1u)
                                                     {
-                                                        RequestedFormatIdx = i;
-                                                        RequestedFrameIdx = j;
-                                                        RequestedFrameIntervalIdx = k + 1;
-                                                        Found = 1;
+                                                        requested_format_idx = i;
+                                                        requested_frame_idx = j;
+                                                        requested_frame_interval_idx = k + 1;
+                                                        found = 1;
                                                         USBH_Logf_Application(
-                                                                "--->Found requested setting (%dx%d @ %d FPS): Format Index %d, Frame Index %d, Frame Interval Index %d",
+                                                                "--->found requested setting (%dx%d @ %d FPS): format Index %d, frame Index %d, frame Interval Index %d",
                                                                 CAMERA_WIDTH,
                                                                 CAMERA_HEIGHT,
-                                                                10000000 / Frame.u.dwFrameInterval[k],
-                                                                RequestedFormatIdx,
-                                                                RequestedFrameIdx,
-                                                                RequestedFrameIntervalIdx);
+                                                                10000000 / frame.u.dwFrameInterval[k],
+                                                                requested_format_idx,
+                                                                requested_frame_idx,
+                                                                requested_frame_interval_idx);
                                                     }
                                                 }
                                             }
                                         }
                                     }
                                 }
-                                cy_rtos_delay_milliseconds(10); // Small delay so that we do not flood terminal output
+                                /* Small delay so that we do not flood terminal output */
+                                cy_rtos_delay_milliseconds(10);
                             }
                         }
                     }
                 }
             }
 
-            // If we didn't find an exact format match, try to use first available format
-            if (Found != 1u && InputHeaderInfo.bNumFormats > 0)
+            /* If we didn't find an exact format match, try to use first available format */
+            if (found != 1u && input_header_info.bNumFormats > 0)
             {
                 USBH_Logf_Application("WARNING: Couldn't find exact requested format. Using first available format instead.");
-                // Fall back to first available format if any exist
-                RequestedFormatIdx = 0;
-                RequestedFrameIdx = 0;
-                RequestedFrameIntervalIdx = 1; // First interval
-                Found = 1;
+                /* Fall back to first available format if any exist */
+                requested_format_idx = 0;
+                requested_frame_idx = 0;
+                requested_frame_interval_idx = 1;
+                found = 1;
             }
         }
 
-        // Receive frame data
-        memset(&StreamInfo, 0, sizeof(USBH_VIDEO_STREAM_CONFIG));
-        StreamInfo.Flags = 0;
-        if (Found == 1u)
+        /* Receive frame data */
+        memset(&stream_info, 0, sizeof(USBH_VIDEO_STREAM_CONFIG));
+        stream_info.Flags = 0;
+        if (found == 1u)
         {
-            StreamInfo.FormatIdx = RequestedFormatIdx;
-            StreamInfo.FrameIdx = RequestedFrameIdx;
-            StreamInfo.FrameIntervalIdx = RequestedFrameIntervalIdx;
-            StreamInfo.pfDataCallback = _cbOnData;
+            stream_info.FormatIdx = requested_format_idx;
+            stream_info.FrameIdx = requested_frame_idx;
+            stream_info.FrameIntervalIdx = requested_frame_interval_idx;
+            stream_info.pfDataCallback = _on_data_cb;
 
-            // Initialize the frame monitoring variables
-            lastBuffer = 0;
+            /* Initialize the frame monitoring variables */
+            last_buffer = 0;
             last_check_time = ifx_time_get_ms_f();
 #if USE_STATUS_TASK
-      MsgStat.IsOpen  = 1;
-      MsgStat.hDevice = hDevice;
-      cy_rtos_queue_put(&_StatusMailBox, &MsgStat, 0);
+      msg_state.IsOpen  = 1;
+      msg_state.hDevice = hDevice;
+      cy_rtos_queue_put(&_StatusMailBox, &msg_state, 0);
 #endif
-            cy_rtos_queue_reset( &_DeviceStateMailBox );
-            Status = USBH_VIDEO_OpenStream(hDevice, &StreamInfo, &Stream);
-            if (Status != USBH_STATUS_SUCCESS)
+            cy_rtos_queue_reset(&_device_state_mail_box);
+            status = USBH_VIDEO_OpenStream(h_device, &stream_info, &stream);
+            if (status != USBH_STATUS_SUCCESS)
             {
-                USBH_Logf_Application("USBH_VIDEO_OpenStream returned with error: %s", USBH_GetStatusStr(Status));
+                USBH_Logf_Application("USBH_VIDEO_OpenStream returned with error: %s", USBH_GetStatusStr(status));
             }
             else
             {
-                // Wait until the device has been disconnected
+                /* Wait until the device has been disconnected */
                 for (;;)
                 {
-                    // Check for stalled camera frames
+                    /* Check for stalled camera frames */
                     float current_time = ifx_time_get_ms_f();
                     if ((current_time - last_check_time) > 1000)
                     {
@@ -946,30 +1004,30 @@ static void _OnDevReady(U8 DevIndex)
                         if (last_frame_time > 0 && (current_time - last_frame_time) > frame_timeout_ms)
                         {
                             printf("[ERROR] No frames received for %.2f seconds, camera is stalled", frame_timeout_ms / 1000.0);
-                            // Force camera reset
+                            /* Force camera reset */
                             break;
                         }
-#endif // ENABLE_USB_WEBCAM_TIMEOUT
+#endif /* ENABLE_USB_WEBCAM_TIMEOUT */
                     }
-                    // Checking if the queue operation was successful
-                    r = cy_rtos_queue_get(&_DeviceStateMailBox, (char *)&MBEvent, 100);
+                    /* Checking if the queue operation was successful */
+                    r = cy_rtos_queue_get(&_device_state_mail_box, (char *)&mb_event, 100);
                     if (r == CY_RSLT_SUCCESS)
                     {
-                        if (MBEvent == 0xff)
+                        if (mb_event == 0xff)
                         {
                             USBH_Logf_Application("USBH_VIDEO_OpenStream breaking - Device was disconnected");
                             break;
                         }
-                        else if (MBEvent == 0xfe)
+                        else if (mb_event == 0xfe)
                         {
                             USBH_Logf_Application("USBH_VIDEO_OpenStream breaking - Transfer status error");
                             break;
                         }
                         else
                         {
-                            USBH_Logf_Application("USBH_VIDEO_OpenStream received unknown error code: 0x%02x", MBEvent);
+                            USBH_Logf_Application("USBH_VIDEO_OpenStream received unknown error code: 0x%02x", mb_event);
                             if (_device_connected)
-                                MBEvent = 0xfe;
+                                mb_event = 0xfe;
                             break;
                         }
                     }
@@ -978,7 +1036,7 @@ static void _OnDevReady(U8 DevIndex)
         }
         else
         {
-            // Display error text until webcam is removed
+            /* Display error text until webcam is removed */
             while (_device_connected)
             {
                 USBH_OS_Delay(50);
@@ -987,16 +1045,14 @@ static void _OnDevReady(U8 DevIndex)
     }
 
 cleanup:
-        //
-        //  Close the device
-        //
-        USBH_Logf_Application("Closing video device...");
-        USBH_VIDEO_Close(hDevice);
+    /* Close the device */
+    USBH_Logf_Application("Closing video device...");
+    USBH_VIDEO_Close(h_device);
 
 #if USE_STATUS_TASK
-    MsgStat.IsOpen  = 0;
-    MsgStat.hDevice = hDevice;
-    cy_rtos_queue_put(&_StatusMailBox, &MsgStat, 0);
+    msg_state.IsOpen  = 0;
+    msg_state.hDevice = hDevice;
+    cy_rtos_queue_put(&_StatusMailBox, &msg_state, 0);
 #endif
 
 }
@@ -1020,119 +1076,158 @@ cleanup:
 *      Button control
 */
 static void _StatusTask(void) {
-  USBH_VIDEO_MESSAGE_STATUS MsgBuf;
-  USBH_VIDEO_TERM_UNIT_INFO TermInfo;
-  USBH_STATUS               Status;
-  unsigned                  Index;
-  U8                        StatusBuf[32];
-  U32                       NumBytesRead;
-  unsigned                  r;
+    USBH_VIDEO_MESSAGE_STATUS MsgBuf;
+    USBH_VIDEO_TERM_UNIT_INFO TermInfo;
+    USBH_STATUS               status;
+    unsigned                  Index;
+    U8                        StatusBuf[32];
+    U32                       NumBytesRead;
+    unsigned                  r;
 
-  memset(&StatusBuf[0], 0, sizeof(StatusBuf));
-  for (;;) {
-    //
-    // Wait for stream to open
-    //
-    r = cy_rtos_queue_get(&_StatusMailBox, &MsgBuf, 0);
-    if (r == 0) {
-      if (MsgBuf.IsOpen != 1) {
-          cy_rtos_delay_milliseconds(20); // Connection was/is closed
-      } else {
-        for (;;) {
-          //
-          // If the stream is open, continuously check for new status messages
-          // and check if we got a new message in our mailbox
-          //
-          (void)cy_rtos_count_queue(&_StatusMailBox, &r);
-          if (r != 0) {
-            break; // Got new message, break out of loop to check it.
-          }
-          memset(&StatusBuf[0], 0, sizeof(StatusBuf));
-          Status = USBH_VIDEO_ReadStatus(MsgBuf.hDevice, &StatusBuf[0], sizeof(StatusBuf), &NumBytesRead, 200);
-          if (Status == USBH_STATUS_SUCCESS || Status == USBH_STATUS_TIMEOUT) {
-            if (NumBytesRead > 0) {
-              switch (StatusBuf[0]) {
-              case USBH_VIDEO_SUBCLASS_CONTROL: // VideoControl interface
-                USBH_Logf_Application("Received VideoControl interface status:");
-                //
-                // Check Unit/Term info to determine whether we are dealing with the former or the latter.
-                //
-                Status = USBH_VIDEO_TermUnitID2Index(MsgBuf.hDevice, StatusBuf[1], &Index);
-                if (Status == USBH_STATUS_SUCCESS) {
-                  Status = USBH_VIDEO_GetTermUnitInfo(MsgBuf.hDevice, Index, &TermInfo);
-                  if (Status == USBH_STATUS_SUCCESS) {
-                    USBH_Logf_Application("  Originator ID:       %d (index: %d)", StatusBuf[1], Index);
-                    USBH_Logf_Application("  Control Selector:    %d", StatusBuf[3]);
-                    switch (StatusBuf[4]) {
-                    case 0: // Control value
-                      USBH_Logf_Application("  Control Change Type: Control value change");
-                      break;
-                    case 1: // Control info
-                      USBH_Logf_Application("  Control Change Type: Control info change");
-                      break;
-                    case 2: // Control failure
-                      USBH_Logf_Application("  Control Change Type: Control failure change");
-                      break;
-                    default: // Invalid
-                      USBH_Logf_Application("  Received unkown control change type.");
-                      continue;
-                    }
-                    if (TermInfo.Type == USBH_VIDEO_VC_PROCESSING_UNIT) {
-                      USBH_Logf_Application("  Type:                Processing Unit");
-                      if (StatusBuf[3] == USBH_VIDEO_CS_PU_GAIN_CONTROL) {
-                        USBH_Logf_Application("  Gain :          %d", USBH_LoadU16LE(&StatusBuf[5]));
-                      } else if (StatusBuf[3] == USBH_VIDEO_CS_PU_WHITE_BALANCE_TEMPERATURE_CONTROL) {
-                        USBH_Logf_Application("  White Balance Temperature: %dK", USBH_LoadU16LE(&StatusBuf[5]));
-                      } else {
-                        USBH_Logf_Application("  Undecoded control.");
-                      }
-
-                    } else if (TermInfo.Type == USBH_VIDEO_VC_INPUT_TERMINAL) {
-                      USBH_Logf_Application("  Type:                Input Terminal");
-                      if (StatusBuf[3] == USBH_VIDEO_CS_CT_EXPOSURE_TIME_ABSOLUTE_CONTROL) {
-                        USBH_Logf_Application("  Absolute exposure time: %d.%ds", USBH_LoadU32LE(&StatusBuf[5]) / 10000, USBH_LoadU32LE(&StatusBuf[5]) % 10000);
-                      } else {
-                        USBH_Logf_Application("  Undecoded control.");
-                      }
-                    } else if (TermInfo.Type == USBH_VIDEO_VC_EXTENSION_UNIT) {
-                      USBH_Logf_Application("  Type:                Extension Unit");
-                      USBH_Logf_Application("  Value:               Cannot decode.");
-                    }
-                  }
-                } else {
-                  USBH_Logf_Application("  USBH_VIDEO_TermUnitID2Index failed with %s", USBH_GetStatusStr(Status));
-                }
-                break;
-              case USBH_VIDEO_SUBCLASS_STREAMING: // VideoStreaming interface
-                USBH_Logf_Application("Received VideoStreaming interface status:");
-                USBH_Logf_Application("  Originator ID:       %d", StatusBuf[1]);
-                if (StatusBuf[2] == 0) {
-                  if (StatusBuf[3] == 0) {
-                    USBH_Logf_Application("  Button released.");
-                  } else {
-                    USBH_Logf_Application("  Button pressed.");
-                  }
-                } else { // We don't handle these here, nor do we output the specific error.
-                  USBH_Logf_Application("  Stream Error.");
-                }
-                break;
-              default: // Invalid
-                USBH_Logf_Application("Received unkown status.");
-                continue;
-              }
-              cy_rtos_delay_milliseconds(10); // Small delay so that we do not flood terminal output
+    memset(&StatusBuf[0], 0, sizeof(StatusBuf));
+    for (;;)
+    {
+        /*
+         Wait for stream to open
+        */
+        r = cy_rtos_queue_get(&_StatusMailBox, &MsgBuf, 0);
+        if (r == 0)
+        {
+            if (MsgBuf.IsOpen != 1)
+            {
+                cy_rtos_delay_milliseconds(20); // Connection was/is closed
             }
-          } else {
-            USBH_Logf_Application("An error occured: %s.", USBH_GetStatusStr(Status));
-            MsgBuf.IsOpen = 0; // Device was removed, reset open flag and break out of loop.
-            break;
-          }
+            else
+            {
+                for (;;)
+                {
+                    /*
+                     If the stream is open, continuously check for new status messages
+                     and check if we got a new message in our mailbox
+                    */
+                    (void)cy_rtos_count_queue(&_StatusMailBox, &r);
+                    if (r != 0)
+                    {
+                        break; /* Got new message, break out of loop to check it. */
+                    }
+                    memset(&StatusBuf[0], 0, sizeof(StatusBuf));
+                    status = USBH_VIDEO_ReadStatus(MsgBuf.hDevice, &StatusBuf[0], sizeof(StatusBuf), &NumBytesRead, 200);
+                    if (status == USBH_STATUS_SUCCESS || status == USBH_STATUS_TIMEOUT)
+                    {
+                        if (NumBytesRead > 0)
+                        {
+                            switch (StatusBuf[0])
+                            {
+                                case USBH_VIDEO_SUBCLASS_CONTROL: // VideoControl interface
+                                    USBH_Logf_Application("Received VideoControl interface status:");
+                                    /*
+                                     Check Unit/Term info to determine whether we are dealing with the former or the latter.
+                                    */
+                                    status = USBH_VIDEO_TermUnitID2Index(MsgBuf.hDevice, StatusBuf[1], &Index);
+                                    if (status == USBH_STATUS_SUCCESS)
+                                    {
+                                        status = USBH_VIDEO_GetTermUnitInfo(MsgBuf.hDevice, Index, &TermInfo);
+                                        if (status == USBH_STATUS_SUCCESS)
+                                        {
+                                            USBH_Logf_Application("  Originator ID:       %d (index: %d)", StatusBuf[1], Index);
+                                            USBH_Logf_Application("  Control Selector:    %d", StatusBuf[3]);
+                                            switch (StatusBuf[4])
+                                            {
+                                                case 0: // Control value
+                                                    USBH_Logf_Application("  Control Change Type: Control value change");
+                                                    break;
+                                                case 1: // Control info
+                                                    USBH_Logf_Application("  Control Change Type: Control info change");
+                                                    break;
+                                                case 2: // Control failure
+                                                    USBH_Logf_Application("  Control Change Type: Control failure change");
+                                                    break;
+                                                default: // Invalid
+                                                    USBH_Logf_Application("  Received unkown control change type.");
+                                                    continue;
+                                            }
+                                            if (TermInfo.Type == USBH_VIDEO_VC_PROCESSING_UNIT)
+                                            {
+                                                USBH_Logf_Application("  Type:                Processing Unit");
+                                                if (StatusBuf[3] == USBH_VIDEO_CS_PU_GAIN_CONTROL)
+                                                {
+                                                    USBH_Logf_Application("  Gain :          %d", USBH_LoadU16LE(&StatusBuf[5]));
+                                                }
+                                                else if (StatusBuf[3] == USBH_VIDEO_CS_PU_WHITE_BALANCE_TEMPERATURE_CONTROL)
+                                                {
+                                                    USBH_Logf_Application("  White Balance Temperature: %dK", USBH_LoadU16LE(&StatusBuf[5]));
+                                                }
+                                                else
+                                                {
+                                                USBH_Logf_Application("  Undecoded control.");
+                                                }
+
+                                            }
+                                            else if (TermInfo.Type == USBH_VIDEO_VC_INPUT_TERMINAL)
+                                            {
+                                                USBH_Logf_Application("  Type:                Input Terminal");
+                                                if (StatusBuf[3] == USBH_VIDEO_CS_CT_EXPOSURE_TIME_ABSOLUTE_CONTROL)
+                                                {
+                                                    USBH_Logf_Application("  Absolute exposure time: %d.%ds", USBH_LoadU32LE(&StatusBuf[5]) / 10000, USBH_LoadU32LE(&StatusBuf[5]) % 10000);
+                                                }
+                                                else
+                                                {
+                                                    USBH_Logf_Application("  Undecoded control.");
+                                                }
+                                            }
+                                            else if (TermInfo.Type == USBH_VIDEO_VC_EXTENSION_UNIT)
+                                            {
+                                                USBH_Logf_Application("  Type:                Extension Unit");
+                                                USBH_Logf_Application("  Value:               Cannot decode.");
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        USBH_Logf_Application("  USBH_VIDEO_TermUnitID2Index failed with %s", USBH_GetStatusStr(status));
+                                    }
+                                    break;
+                                case USBH_VIDEO_SUBCLASS_STREAMING: // VideoStreaming interface
+                                    USBH_Logf_Application("Received VideoStreaming interface status:");
+                                    USBH_Logf_Application("  Originator ID:       %d", StatusBuf[1]);
+                                    if (StatusBuf[2] == 0)
+                                    {
+                                        if (StatusBuf[3] == 0)
+                                        {
+                                            USBH_Logf_Application("  Button released.");
+                                        }
+                                        else
+                                        {
+                                            USBH_Logf_Application("  Button pressed.");
+                                        }
+                                    }
+                                    else /* We don't handle these here, nor do we output the specific error. */
+                                    {
+                                        USBH_Logf_Application("  Stream Error.");
+                                    }
+                                    break;
+
+                                default: // Invalid
+                                    USBH_Logf_Application("Received unkown status.");
+                                    continue;
+                            }
+
+                            cy_rtos_delay_milliseconds(10); // Small delay so that we do not flood terminal output
+                        }
+                    }
+                    else
+                    {
+                        USBH_Logf_Application("An error occured: %s.", USBH_GetStatusStr(status));
+                        MsgBuf.IsOpen = 0; // Device was removed, reset open flag and break out of loop.
+                        break;
+                    }
+                }
+            }
+        } else
+        {
+            cy_rtos_delay_milliseconds(20); // No new messages
         }
-      }
-    } else {
-        cy_rtos_delay_milliseconds(20); // No new messages
     }
-  }
 }
 #endif
 
@@ -1161,7 +1256,7 @@ void _StatusTask_func(cy_thread_arg_t arg)
 void cm55_usb_webcam_task(void *arg)
 {
     const uint32_t task_stack_size_bytes = 8192;
-    U8 DevIndex;
+    U8 dev_index;
     cy_rslt_t result;
 
     USBH_Init();
@@ -1180,28 +1275,29 @@ void cm55_usb_webcam_task(void *arg)
 
 #if USE_STATUS_TASK
   cy_rtos_queue_init(&_StatusMailBox, SEGGER_COUNTOF(_StatusMailBuf), sizeof(USBH_VIDEO_MESSAGE_STATUS));
-  cy_rtos_create_thread(&_TCBStat, _StatusTask_func, "USBH_status", NULL /*_StackStat*/, sizeof(_StackStat), 2, NULL); // Start USBH Status task
+  cy_rtos_create_thread(&_TCBStat, _StatusTask_func, "USBH_status", NULL /*_StackStat*/, sizeof(_StackStat), 2, NULL); // Start USBH status task
 #endif
 
-    result = cy_rtos_queue_init( &_VIDEO_MailBox, sizeof(U8), MAX_VIDEO_INTERFACES);
-    if ( CY_RSLT_SUCCESS != result ) {
+    result = cy_rtos_queue_init(&_video_mail_box, sizeof(U8), MAX_VIDEO_INTERFACES);
+    if (CY_RSLT_SUCCESS != result)
+    {
         CY_ASSERT(0);
     }
 
-    result = cy_rtos_queue_init(&_DeviceStateMailBox, sizeof(U8), 1);
+    result = cy_rtos_queue_init(&_device_state_mail_box, sizeof(U8), 1);
     if (CY_RSLT_SUCCESS != result)
     {
         CY_ASSERT(0);
     }
 
     USBH_VIDEO_Init();
-    USBH_VIDEO_AddNotification(&Hook, _cbOnAddRemoveDevice, NULL);
+    USBH_VIDEO_AddNotification(&hook, _add_remove_device_cb, NULL);
 
     while (true)
     {
-        if (CY_RSLT_SUCCESS == cy_rtos_queue_get(&_VIDEO_MailBox, &DevIndex, 100))
+        if (CY_RSLT_SUCCESS == cy_rtos_queue_get(&_video_mail_box, &dev_index, 100))
         {
-            _OnDevReady(DevIndex);
+            _on_dev_ready(dev_index);
         }
     }
 }

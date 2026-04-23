@@ -7,7 +7,7 @@
  * Related Document : See README.md
  *
 ********************************************************************************
-* (c) 2025, Infineon Technologies AG, or an affiliate of Infineon
+* (c) 2025-2026, Infineon Technologies AG, or an affiliate of Infineon
 * Technologies AG. All rights reserved.
 * This software, associated documentation and materials ("Software") is
 * owned by Infineon Technologies AG or one of its affiliates ("Infineon")
@@ -18,7 +18,7 @@
 * agreement applies, then any use, reproduction, modification, translation, or
 * compilation of this Software is prohibited without the express written
 * permission of Infineon.
-* 
+*
 * Disclaimer: UNLESS OTHERWISE EXPRESSLY AGREED WITH INFINEON, THIS SOFTWARE
 * IS PROVIDED AS-IS, WITH NO WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 * INCLUDING, BUT NOT LIMITED TO, ALL WARRANTIES OF NON-INFRINGEMENT OF
@@ -46,6 +46,7 @@
 #include "cyabs_rtos_impl.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "inference_task.h"
 #include "lcd_task.h"
 #include "ifx_time_utils.h"
 #include "cycfg_qspi_memslot.h"
@@ -54,16 +55,7 @@
 /******************************************************************************
  * Macros
  ******************************************************************************/
-#define ADDRESS_SIZE            (4u)         /* Memory address size */
-#define NUM_BYTES_PER_LINE      (16u)        /* Number of bytes per line */
-#define BUFFER_SIZE             (64u)        /* Size of buffer for read-write*/
-#define PSRAM_ADDRESS           (0x64000000) /* PSRAM test address */
-#define TEST_DATA_1             (0xA5A5A5A5) /* Test data 1 */
-#define TEST_DATA_2             (0x5A5A5A5A) /* Test data 2 */
-
 /* The timeout value in microsecond used to wait for core to be booted */
-#define CM55_BOOT_WAIT_TIME_USEC       (10U)
-#define LED_TOGGLE_DELAY_MSEC          (1000u)  /* LED blink delay */
 #define SMIF_INIT_TIMEOUT_USEC         (1000u)  /* 1ms SMIF init timeout */
 
 #define GFX_TASK_NAME                       ( "CM55 Gfx Task" )
@@ -96,11 +88,10 @@ cy_semaphore_t usb_semaphore;
  *****************************************************************************/
 void cm55_ns_gfx_task ( void *arg );
 void cm55_usb_webcam_task ( void *arg );
-void ml_pipeline_task ( void *arg );
 void check_status(char *message, uint32_t status);
 
  /*******************************************************************************
- * Function Name: smif_ospi_psram_init
+ * Function Name: vApplicationStackOverflowHook
  ********************************************************************************
  * Summary:
  *   Hook function called when a stack overflow is detected for a task. Triggers
@@ -291,23 +282,23 @@ uint32_t get_run_time_counter_value(void)
 *******************************************************************************/
 uint32_t calculate_idle_percentage(void)
 {
-    static uint32_t previousIdleTime = 0;
-    static TickType_t previousTick = 0;
+    static uint32_t previous_idle_time = 0;
+    static TickType_t previous_tick = 0;
     uint32_t time_diff = 0;
     uint32_t idle_percent = 0;
 
-    uint32_t currentIdleTime = ulTaskGetIdleRunTimeCounter();
-    TickType_t currentTick = portGET_RUN_TIME_COUNTER_VALUE();
+    uint32_t current_idle_time = ulTaskGetIdleRunTimeCounter();
+    TickType_t current_tick = portGET_RUN_TIME_COUNTER_VALUE();
 
-    time_diff = currentTick - previousTick;
+    time_diff = current_tick - previous_tick;
 
-    if((currentIdleTime >= previousIdleTime) && (currentTick > previousTick))
+    if((current_idle_time >= previous_idle_time) && (current_tick > previous_tick))
     {
-        idle_percent = ((currentIdleTime - previousIdleTime) * 100)/time_diff;
+        idle_percent = ((current_idle_time - previous_idle_time) * 100)/time_diff;
     }
 
-    previousIdleTime = ulTaskGetIdleRunTimeCounter();
-    previousTick = portGET_RUN_TIME_COUNTER_VALUE();
+    previous_idle_time = ulTaskGetIdleRunTimeCounter();
+    previous_tick = portGET_RUN_TIME_COUNTER_VALUE();
 
     return idle_percent;
 }
@@ -336,7 +327,8 @@ int main ( void )
     /* Initialize the device and board peripherals */
     result = cybsp_init();
     if ( CY_RSLT_SUCCESS != result ) {
-        CY_ASSERT(0);       /* Board init failed. Stop program execution */
+        /* Board init failed. Stop program execution */
+        CY_ASSERT(0);
     }
 
     /* Enable global interrupts */
@@ -373,7 +365,8 @@ int main ( void )
     printf("Following cameras are supported:\r\n");
     printf("1. HBVCAM OV7675 0.3MP Camera: https://www.hbvcamera.com/0-3mp-pixel-usb-cameras/hbvcam-ov7675-0.3mp-mini-laptop-camera-module.html\r\n");
     printf("2. Logitech C920 HD Pro Webcam: https://www.logitech.com/en-ch/shop/p/c920-pro-hd-webcam\r\n");
-    printf("3. HBVCAM OS02F10 2MP Camera: https://www.hbvcamera.com/2-mega-pixel-usb-cameras/2mp-1080p-auto-focus-hd-usb-camera-module-for-atm-machine.html\r\n");
+    printf("3. Logitech C920e Business Webcam: https://www.logitech.com/en-ch/products/webcams/c920e-business-webcam\r\n");
+    printf("4. HBVCAM OS02F10 2MP Camera: https://www.hbvcamera.com/2-mega-pixel-usb-cameras/2mp-1080p-auto-focus-hd-usb-camera-module-for-atm-machine.html\r\n");
     printf("\r\n*************************************************************************************\r\n");
 
     result = cy_rtos_semaphore_init(&usb_semaphore, NUM_IMAGE_BUFFERS, 0);

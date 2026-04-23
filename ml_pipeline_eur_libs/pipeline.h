@@ -1,9 +1,9 @@
 /****************************************************************************/
 /* Copyright (c) 2025 embedUR systems, Inc.    All rights reserved          */
 /****************************************************************************/
+
 #ifndef YOLACT_PERSON_SEGMENTATION_H
 #define YOLACT_PERSON_SEGMENTATION_H
-
 
 #define MULTIPLE_OUTPUT_TENSOR
 
@@ -16,26 +16,42 @@ extern "C" {
 /*******************************************************************************
 * MACROS
 *******************************************************************************/
-#define MID_CONVERSION_COLS 480
-#define MID_CONVERSION_ROWS 480
-#define INPUT_WIDTH 224
-#define INPUT_HEIGHT 224
-#define MAX_PEOPLE 100
-#define NPU_PRIORITY 3
-#define MAX_ELEMENT 5
-#define DISPLAY_HEIGHT (480U)
-#define DISPLAY_WIDTH (832U)
-#define PROTOTYPE_MASK_WIDTH 28
-#define PROTOTYPE_MASK_HEIGHT 28
-#define MASK_COEFFICIENT 32
-#define MAX_BOXES 245
-#define MASK_THRESHHOLD 0.5f
-#define BLUE_COLOR 0x0300009F
-#define NO_COLOR 0x00000000
+#define MID_CONVERSION_COLS      480
+#define MID_CONVERSION_ROWS      480
+
+#define INPUT_WIDTH              224
+#define INPUT_HEIGHT             224
+#define INPUT_CHANNELS           3
+
+#define MAX_PEOPLE               100
+#define MAX_ELEMENT              5
+#define MAX_BOXES                245
+
+#define NPU_PRIORITY             3
+
+#ifndef DISPLAY_H
+#define DISPLAY_H                480U
+#endif
+#ifndef DISPLAY_W
+#define DISPLAY_W                832U
+#endif
+
+#define PROTOTYPE_MASK_WIDTH     28
+#define PROTOTYPE_MASK_HEIGHT    28
+#define MASK_COEFFICIENT         32
+#define MASK_THRESHHOLD          0.5f
+
+#define BLUE_COLOR               0x0300009F
+#define NO_COLOR                 0x00000000
+
+#define PIPELINE_OK              1
+#define PIPELINE_ERROR          -1
+
 #ifndef max
     #define max(a, b) ((a) > (b) ? (a) : (b))
     #define min(a, b) ((a) < (b) ? (a) : (b))
 #endif
+
 /*******************************************************************************
 * Structures
 *******************************************************************************/
@@ -124,10 +140,37 @@ void ml_pipeline_inference(void);
 *******************************************************************************/
 void ml_pipeline_post_process(void);
 
+/*******************************************************************************
+* Function Name: IMAGE_DrawRect
+****************************************************************************//**
+*
+* Draws a rectangle on an image buffer with the specified color and coordinates.
+* The rectangle is defined by its top-left (x0, y0) and bottom-right (x1, y1)
+* corners. The color is specified using RGB components. The function ensures that
+* drawing stays within the bounds of the target display or image buffer based on
+* the provided width (lcd_w) and height (lcd_h).
+*
+* \param pdst     Pointer to the destination image buffer where the rectangle will be drawn.
+* \param x0       X-coordinate of the top-left corner of the rectangle.
+* \param y0       Y-coordinate of the top-left corner of the rectangle.
+* \param x1       X-coordinate of the bottom-right corner of the rectangle.
+* \param y1       Y-coordinate of the bottom-right corner of the rectangle.
+* \param r        Red component of the rectangle color (0–255 or 0–31 depending on format).
+* \param g        Green component of the rectangle color (0–255 or 0–63 depending on format).
+* \param b        Blue component of the rectangle color (0–255 or 0–31 depending on format).
+* \param lcd_w    Width of the display or image buffer in pixels.
+* \param lcd_h    Height of the display or image buffer in pixels.
+*
+* \return None
+*
+*******************************************************************************/
+void IMAGE_DrawRect(uint16_t *pdst, 
+                    int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                    uint16_t r, uint16_t g, uint16_t b, 
+                    uint16_t lcd_w, uint16_t lcd_h);
+                    
 #if defined(__cplusplus)
 }
 #endif /* __cplusplus */
 
-
-#endif
-
+#endif 

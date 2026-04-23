@@ -7,7 +7,7 @@
 #
 ################################################################################
 # \copyright
-# (c) 2025, Infineon Technologies AG, or an affiliate of Infineon
+# (c) 2025-2026, Infineon Technologies AG, or an affiliate of Infineon
 # Technologies AG.  SPDX-License-Identifier: Apache-2.0
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -50,7 +50,7 @@ NN_MODEL_FOLDER=ml_pipeline_eur_src
 
 
 # Model Name to be loaded to the firmware
-# Your model name sohuld be your model directory name
+# Your model name should be your model directory name
 NN_MODEL_NAME=YOLACT_PERSON_SEGMENTATION
 
 # Choose the inference engine
@@ -111,7 +111,7 @@ endif
 
 # Add define to build code for CM55 and include additional files
 ifeq (cm55, $(ML_IMAGIMOB_CPU))
-DEFINES+=ML_IMAGIMOB_CM55 MODEL_NAME=$(NN_MODEL_NAME) CY_ML_MODEL_MEM=.constdata
+DEFINES+=ML_IMAGIMOB_CM55 MODEL_NAME=$(NN_MODEL_NAME) CY_ML_MODEL_MEM=.cy_socmem_data
 
 # Add the model file based on the inference and data types
 SOURCES+=$(wildcard $(NN_MODEL_FOLDER)/$(NN_MODEL_NAME)/*_$(NN_INFERENCE_ENGINE)_model_$(NN_TYPE).c*) $(wildcard $(NN_MODEL_FOLDER)/$(NN_MODEL_NAME)/pipeline.c*)
@@ -158,7 +158,7 @@ ASFLAGS+=
 LDFLAGS+=
 
 # Additional / custom libraries to link in to the application.
-LDLIBS+=../ml_pipeline_eur_libs/yolact_img_seg_pipeline.a
+LDLIBS+=../ml_pipeline_eur_libs/YOLACT_PERSON_SEGMENTATION_pipeline.a
 
 # Path to the linker script to use (if empty, use the default linker script).
 LINKER_SCRIPT+=

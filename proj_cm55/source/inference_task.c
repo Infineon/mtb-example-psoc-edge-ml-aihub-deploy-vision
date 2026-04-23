@@ -5,7 +5,7 @@
 *
 *
 ********************************************************************************
-* (c) 2025, Infineon Technologies AG, or an affiliate of Infineon
+* (c) 2025-2026, Infineon Technologies AG, or an affiliate of Infineon
 * Technologies AG. All rights reserved.
 * This software, associated documentation and materials ("Software") is
 * owned by Infineon Technologies AG or one of its affiliates ("Infineon")
@@ -16,7 +16,7 @@
 * agreement applies, then any use, reproduction, modification, translation, or
 * compilation of this Software is prohibited without the express written
 * permission of Infineon.
-* 
+*
 * Disclaimer: UNLESS OTHERWISE EXPRESSLY AGREED WITH INFINEON, THIS SOFTWARE
 * IS PROVIDED AS-IS, WITH NO WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 * INCLUDING, BUT NOT LIMITED TO, ALL WARRANTIES OF NON-INFRINGEMENT OF
@@ -39,7 +39,19 @@
 *******************************************************************************/
 #include "pipeline.h"
 
-void ml_pipeline_task(void)
+/*******************************************************************************
+* Function Name: ml_pipeline_task
+********************************************************************************
+* Summary: This executes ML pipeline flow.
+*
+* Parameters:
+*   None
+*
+* Return:
+*   None
+*
+*******************************************************************************/
+void ml_pipeline_task(void *arg)
 {
     ml_pipeline_model_init();
     while (1) {
