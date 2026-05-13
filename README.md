@@ -6,7 +6,7 @@ This code example has a three-project structure: CM33 secure, CM33 non-secure, a
 
 [View this README on GitHub.](https://github.com/Infineon/mtb-example-psoc-edge-ml-aihub-deploy-vision)
 
-[Provide feedback on this code example.](https://yourvoice.infineon.com/jfe/form/SV_1NTns53sK2yiljn?Q_EED=eyJVbmlxdWUgRG9jIElkIjoiQ0UyNDIxNDYiLCJTcGVjIE51bWJlciI6IjAwMi00MjE0NiIsIkRvYyBUaXRsZSI6IlBTT0MmdHJhZGU7IEVkZ2UgTUNVOiBBSSBIdWIgZGVwbG95IHZpc2lvbiIsInJpZCI6InNhbmRlZXAuYWtAaW5maW5lb24uY29tIiwiRG9jIHZlcnNpb24iOiIxLjEuMCIsIkRvYyBMYW5ndWFnZSI6IkVuZ2xpc2giLCJEb2MgRGl2aXNpb24iOiJNQ0QiLCJEb2MgQlUiOiJJQ1ciLCJEb2MgRmFtaWx5IjoiUFNPQyJ9)
+[Provide feedback on this code example.](https://yourvoice.infineon.com/jfe/form/SV_1NTns53sK2yiljn?Q_EED=eyJVbmlxdWUgRG9jIElkIjoiQ0UyNDIxNDYiLCJTcGVjIE51bWJlciI6IjAwMi00MjE0NiIsIkRvYyBUaXRsZSI6IlBTT0MmdHJhZGU7IEVkZ2UgTUNVOiBBSSBIdWIgZGVwbG95IHZpc2lvbiIsInJpZCI6InNhbmRlZXAuYWtAaW5maW5lb24uY29tIiwiRG9jIHZlcnNpb24iOiIxLjEuMSIsIkRvYyBMYW5ndWFnZSI6IkVuZ2xpc2giLCJEb2MgRGl2aXNpb24iOiJNQ0QiLCJEb2MgQlUiOiJJQ1ciLCJEb2MgRmFtaWx5IjoiUFNPQyJ9)
 
 See the [Design and implementation](docs/design_and_implementation.md) for the functional description of this code example.
 
@@ -93,6 +93,7 @@ Boot from an external OSPI flash performs the following:
 - As a prerequisite, follow the steps in the "Getting started" section in the [AN237849 – Getting Started with the PSOC&trade; Edge security](https://www.infineon.com/AN237849) to generate your keys and certificates and to provision the device for ownership transfer
 - Provision the PSOC&trade; Edge E84 Evaluation Kit with the correct extended boot policy configurations required for switching the boot flow to Octal SPI. For details about provisioning and policy configurations, see the "Switching between Octal and Quad SPI external flash memory" section in the [AN237849 – Getting started with the PSOC&trade; Edge security](https://www.infineon.com/AN237849)
 - In the example, copy the *design.modus* and *design.cyqspi* files provided in the "OSPI_config" folder and replace them under *\<project_location\>/bsps/\<bsp_name\>/config* folder
+- Open the qspi-configurator and click on the Save button. This allows the device-configurator to reflect the flash part changes
 - Clean and build the application, then follow the steps provided in **Operation** section
 
 > **Note:** Once the application is switched to boot from OSPI, to execute any other code examples including the [Hello world](https://github.com/Infineon/mtb-example-psoc-edge-hello-world) code example, provision the PSOC&trade; Edge E84 Evaluation Kit again with correct extended boot policy configurations for switching the boot flow to QSPI flash. For details about provisioning and policy configurations, see the "Switching between Octal and Quad SPI external flash memory" section in the [AN237849 – Getting started with the PSOC&trade; Edge security](https://www.infineon.com/AN237849).
@@ -150,6 +151,7 @@ Document title: *CE242146* – *PSOC&trade; Edge MCU: AI Hub deploy vision*
  ------- | ---------------------
  1.0.0   | New code example
  1.1.0   | Updated the code example to boot from QSPI flash by default
+ 1.1.1   | Minor update in the README
 <br>
 
 
