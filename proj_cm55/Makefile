@@ -95,7 +95,7 @@ MODEL_PREFIX=$(subst $\",,$(NN_MODEL_NAME))
 CY_IGNORE+=$(NN_MODEL_FOLDER)
 
 # Add additional defines to the build process (without a leading -D).
-DEFINES+=CY_RETARGET_IO_CONVERT_LF_TO_CRLF CY_RTOS_AWARE MTB_SHARED_MEM ARM_MATH_HELIUM ARM_MATH_DSP ARM_MATH_AUTOVECTORIZE
+DEFINES+=CY_RETARGET_IO_CONVERT_LF_TO_CRLF CY_RTOS_AWARE MTB_SHARED_MEM ARM_MATH_HELIUM ARM_MATH_DSP ARM_MATH_AUTOVECTORIZE _BAREMETAL=0
 DEFINES+=NN_MODEL_NAME=\"$(NN_MODEL_NAME)\"
 
 # Like SOURCES, but for include directories. Value should be paths to
@@ -104,7 +104,7 @@ INCLUDES+=$(NN_MODEL_FOLDER)/$(NN_MODEL_NAME)
 INCLUDES+=../ml_pipeline_eur_libs/
 
 # Add additional defines to the build process (without a leading -D).
-ifeq (tflm, $(NN_INFERENCE_ENGINE))
+ifeq ($(NN_INFERENCE_ENGINE),tflm)
 COMPONENTS+=ML_TFLM
 DEFINES+=TF_LITE_STATIC_MEMORY
 endif
@@ -135,6 +135,11 @@ CY_IGNORE+=$(SEARCH_cmsis)/COMPONENT_CMSIS_NN/Source/ConvolutionFunctions/arm_de
 
 # Select softfp or hardfp floating point. Default is softfp.
 VFP_SELECT+= hardfp
+
+# Check if softfp mode is used. If yes, trigger an error
+ifeq ($(VFP_SELECT),softfp)
+$(error softfp floating point is not supported for this code example)
+endif
 
 # Additional / custom C compiler flags.
 #

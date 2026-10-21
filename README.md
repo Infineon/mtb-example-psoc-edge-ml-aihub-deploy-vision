@@ -6,14 +6,14 @@ This code example has a three-project structure: CM33 secure, CM33 non-secure, a
 
 [View this README on GitHub.](https://github.com/Infineon/mtb-example-psoc-edge-ml-aihub-deploy-vision)
 
-[Provide feedback on this code example.](https://yourvoice.infineon.com/jfe/form/SV_1NTns53sK2yiljn?Q_EED=eyJVbmlxdWUgRG9jIElkIjoiQ0UyNDIxNDYiLCJTcGVjIE51bWJlciI6IjAwMi00MjE0NiIsIkRvYyBUaXRsZSI6IlBTT0MmdHJhZGU7IEVkZ2UgTUNVOiBBSSBIdWIgZGVwbG95IHZpc2lvbiIsInJpZCI6InNhbmRlZXAuYWtAaW5maW5lb24uY29tIiwiRG9jIHZlcnNpb24iOiIxLjEuMSIsIkRvYyBMYW5ndWFnZSI6IkVuZ2xpc2giLCJEb2MgRGl2aXNpb24iOiJNQ0QiLCJEb2MgQlUiOiJJQ1ciLCJEb2MgRmFtaWx5IjoiUFNPQyJ9)
+[Provide feedback on this code example.](https://yourvoice.infineon.com/jfe/form/SV_1NTns53sK2yiljn?Q_EED=eyJVbmlxdWUgRG9jIElkIjoiQ0UyNDIxNDYiLCJTcGVjIE51bWJlciI6IjAwMi00MjE0NiIsIkRvYyBUaXRsZSI6IlBTT0MmdHJhZGU7IEVkZ2UgTUNVOiBBSSBIdWIgZGVwbG95IHZpc2lvbiIsInJpZCI6InNhbmRlZXAuYWtAaW5maW5lb24uY29tIiwiRG9jIHZlcnNpb24iOiIxLjEuMiIsIkRvYyBMYW5ndWFnZSI6IkVuZ2xpc2giLCJEb2MgRGl2aXNpb24iOiJNQ0QiLCJEb2MgQlUiOiJJQ1ciLCJEb2MgRmFtaWx5IjoiUFNPQyJ9)
 
 See the [Design and implementation](docs/design_and_implementation.md) for the functional description of this code example.
 
 
 ## Requirements
 
-- [ModusToolbox&trade;](https://www.infineon.com/modustoolbox) v3.7 or later (tested with v3.7)
+- [ModusToolbox&trade;](https://www.infineon.com/modustoolbox) v3.7 or later (tested with v3.9)
 - Board support package (BSP) minimum required version: 1.0.0
 - Programming language: C
 - Associated parts: All [PSOC&trade; Edge MCU](https://www.infineon.com/products/microcontroller/32-bit-psoc-arm-cortex/32-bit-psoc-edge-arm) parts
@@ -22,11 +22,12 @@ See the [Design and implementation](docs/design_and_implementation.md) for the f
 ## Supported toolchains (make variable 'TOOLCHAIN')
 
 - GNU Arm&reg; Embedded Compiler v14.2.1 (`GCC_ARM`) – Default value of `TOOLCHAIN`
-- LLVM Embedded Toolchain for Arm&reg; v19.1.5 (`LLVM_ARM`)
+- Arm&reg; Toolchain for Embedded v22.1 (`LLVM_ARM`)
 
 > **Note:**
 > - IAR is not supported by the TensorFlow Lite for Microcontrollers (TFLM) library
-> - This code example fails to build in RELEASE mode with the `GCC_ARM` toolchain v14.2.1 as it does not recognize certain Helium instructions of the CMSIS-DSP library. This issue is not present in the Arm&reg; Compiler for Embedded (armclang)
+> - This code example fails to build in RELEASE mode with the `GCC_ARM` toolchain v14.2.1 as it does not recognize some of the Helium instructions of the CMSIS-DSP library. This issue is not present in the Arm&reg; Compiler for Embedded (armclang)
+> - This code example currently supports the VFP_SELECT option "hardfp" only. Setting "softfp" may cause build failure.
 
 
 ## Supported kits (make variable 'TARGET')
@@ -152,6 +153,7 @@ Document title: *CE242146* – *PSOC&trade; Edge MCU: AI Hub deploy vision*
  1.0.0   | New code example
  1.1.0   | Updated the code example to boot from QSPI flash by default
  1.1.1   | Minor update in the README
+ 1.1.2   | Updated linker script to support LLVM ATfE v22.1.0
 <br>
 
 
